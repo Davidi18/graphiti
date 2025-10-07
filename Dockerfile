@@ -80,8 +80,8 @@ ENV PYTHONUNBUFFERED=1 \
 USER app
 
 # Set port
-ENV PORT=8000
+ENV PORT=8010
 EXPOSE $PORT
 
-# Use uv run for execution
-CMD ["uv", "run", "uvicorn", "graph_service.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# 🔹 Modified CMD to run the FastMCP server instead of graph_service
+CMD ["python", "-c", "from mcp.server.fastmcp.server import FastMCP; s=FastMCP(); s.settings.host='0.0.0.0'; s.settings.port=8010; s.run(transport='streamable-http')"]
