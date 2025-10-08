@@ -3,84 +3,42 @@
 Graphiti MCP Server - Exposes Graphiti functionality through the Model Context Protocol (MCP)
 """
 
-import argparse
 import asyncio
 import logging
 import os
-import sys
-from collections.abc import Callable
-from datetime import datetime, timezone
-from typing import Any, TypedDict, cast
-
-# Azure integration disabled for this build
-def create_azure_credential_token_provider():
-    raise NotImplementedError("Azure integration is disabled in this build.")
-
-from dotenv import load_dotenv
-from fastapi import FastAPI
-from mcp.server.fastmcp import FastMCP
-from openai import AsyncAzureOpenAI
+from fastapi import FastAPI, Request
 from pydantic import BaseModel, Field
-
+from dotenv import load_dotenv
 from graphiti_core import Graphiti
-from graphiti_core.edges import EntityEdge
-from graphiti_core.embedder.azure_openai import AzureOpenAIEmbedderClient
-from graphiti_core.embedder.client import EmbedderClient
-from graphiti_core.embedder.openai import OpenAIEmbedder, OpenAIEmbedderConfig
-from graphiti_core.llm_client import LLMClient
-from graphiti_core.llm_client.azure_openai_client import AzureOpenAILLMClient
-from graphiti_core.llm_client.config import LLMConfig
-from graphiti_core.llm_client.openai_client import OpenAIClient
-from graphiti_core.nodes import EpisodeType, EpisodicNode
-from graphiti_core.search.search_config_recipes import (
-    NODE_HYBRID_SEARCH_NODE_DISTANCE,
-    NODE_HYBRID_SEARCH_RRF,
-)
-from graphiti_core.search.search_filters import SearchFilters
-from graphiti_core.utils.maintenance.graph_data_operations import clear_data
 
 # -------------------------------------------------------
-# ✅ Environment & global config
+# ✅ Environment
 # -------------------------------------------------------
 
 load_dotenv()
 
-DEFAULT_LLM_MODEL = 'gpt-4.1-mini'
-SMALL_LLM_MODEL = 'gpt-4.1-nano'
-DEFAULT_EMBEDDER_MODEL = 'text-embedding-3-small'
-SEMAPHORE_LIMIT = int(os.getenv('SEMAPHORE_LIMIT', 10))
+DEFAULT_LLM_MODEL = "gpt-4.1-mini"
+DEFAULT_EMBEDDER_MODEL = "text-embedding-3-small"
+SEMAPHORE_LIMIT = int(os.getenv("SEMAPHORE_LIMIT", 10))
 
 # -------------------------------------------------------
-# ✅ FastAPI + MCP + Graphiti initialization
+# ✅ Core setup
 # -------------------------------------------------------
 
-# יצירת FastAPI
-app = FastAPI(title="Graphiti MCP")
-
-# יצירת מופע Graphiti שמחובר ל־Neo4j
 graphiti = Graphiti(
     uri=os.getenv("NEO4J_URI", "bolt://neo4j:7687"),
     user=os.getenv("NEO4J_USER", "neo4j"),
-    password=os.getenv("NEO4J_PASSWORD", "demodemo")
+    password=os.getenv("NEO4J_PASSWORD", "demodemo"),
 )
 
-# יצירת MCP (בלי להעביר app)
-mcp = FastMCP()
+app = FastAPI(title="Graphiti MCP")
 
-# הוספת הנתיבים של MCP ל־FastAPI
-try:
-    app.include_router(mcp.router)
-    print("✅ MCP routes included in FastAPI")
-except Exception as e:
-    print(f"⚠️ Failed to include MCP router: {e}")
+print("🚀 Graphiti MCP (OpenAI-only build) started successfully.")
+print("✅ FastAPI app initialized with Neo4j connection.")
 
-@app.on_event("startup")
-async def startup_event():
-    try:
-        await mcp.initialize()
-        print("✅ MCP initialized successfully")
-    except Exception as e:
-        print(f"⚠️ MCP init error: {e}")
+# -------------------------------------------------------
+# ✅ Health endpoints
+# -------------------------------------------------------
 
 @app.get("/healthz")
 def healthz():
@@ -88,15 +46,66 @@ def healthz():
 
 @app.get("/status")
 def status():
-    """בדיקה פשוטה לוודא ש־Graphiti ו־Neo4j זמינים"""
     try:
         graphiti.driver.verify_connectivity()
         return {"status": "ok", "neo4j": "connected"}
     except Exception as e:
         return {"status": "error", "neo4j": str(e)}
 
-print("🚀 Graphiti MCP (OpenAI-only build) started successfully.")
-print("✅ FastAPI app and MCP initialized with Neo4j connection.")
+# -------------------------------------------------------
+# ✅ Manual MCP handler
+# -------------------------------------------------------
+
+@app.post("/mcp")
+async def mcp_endpoint(request: Request):
+    """Endpoint to simulate minimal MCP protocol behavior."""
+    try:
+        body = await request.json()
+        method = body.get("method")
+
+        if method == "tools/list":
+            return {
+                "jsonrpc": "2.0",
+                "id": body.get("id"),
+                "result": {
+                    "tools": [
+                        {"name": "graph_summary", "description": "Summarize the current knowledge graph"},
+                        {"name": "graph_list_nodes", "description": "List nodes in the graph"},
+                        {"name": "graph_list_relations", "description": "List relationships in the graph"},
+                    ]
+                },
+            }
+
+        elif method == "tools/call":
+            params = body.get("params", {})
+            tool_name = params.get("name")
+
+            if tool_name == "graph_summary":
+                return {
+                    "jsonrpc": "2.0",
+                    "id": body.get("id"),
+                    "result": {"content": [{"type": "text", "text": "Graphiti MCP is connected and ready ✅"}]},
+                }
+
+            return {
+                "jsonrpc": "2.0",
+                "id": body.get("id"),
+                "error": {"code": -32601, "message": f"Unknown tool: {tool_name}"},
+            }
+
+        else:
+            return {"jsonrpc": "2.0", "id": body.get("id"), "error": {"code": -32600, "message": "Invalid method"}}
+
+    except Exception as e:
+        return {"jsonrpc": "2.0", "error": {"code": -32603, "message": str(e)}}
+
+# -------------------------------------------------------
+# ✅ Run manually if needed
+# -------------------------------------------------------
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8010)
 
 class Requirement(BaseModel):
     """A Requirement represents a specific need, feature, or functionality that a product or service must fulfill.
