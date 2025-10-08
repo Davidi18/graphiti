@@ -87,14 +87,28 @@ def verify_bearer_token(credentials: HTTPAuthorizationCredentials = Depends(secu
 # -------------------------------------------------------
 
 @app.post("/mcp")
-async def mcp_endpoint(
-    request: Request,
-    credentials: HTTPAuthorizationCredentials = Depends(verify_bearer_token),
-):
-    """Main MCP endpoint for Graphiti operations."""
+async def mcp_endpoint(request: Request):
+    """Main MCP endpoint for Graphiti operations with Bearer token auth."""
     try:
         body = await request.json()
         method = body.get("method")
+
+        # ✅ Authentication: allow tools/list without auth, require Bearer for others
+        if method != "tools/list":
+            auth_header = request.headers.get("Authorization", "")
+            token = os.getenv("GRAPHITI_MCP_TOKEN", "")
+
+            if not token:
+                return JSONResponse(
+                    {"jsonrpc": "2.0", "error": {"code": -32000, "message": "Server misconfigured: GRAPHITI_MCP_TOKEN not set"}},
+                    status_code=500,
+                )
+
+            if not auth_header.startswith("Bearer ") or auth_header.split(" ", 1)[1] != token:
+                return JSONResponse(
+                    {"jsonrpc": "2.0", "error": {"code": -32604, "message": "Invalid or missing Bearer token"}},
+                    status_code=401,
+                )
 
         # ===========================
         # 🔹 TOOLS LIST
