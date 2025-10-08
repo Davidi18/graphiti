@@ -22,7 +22,7 @@ from graphiti_core.llm_client import LLMClient, LLMConfig
 from graphiti_core.llm_client.openai_client import OpenAIClient
 from graphiti_core.embedder import EmbedderClient
 from graphiti_core.embedder.openai import OpenAIEmbedder, OpenAIEmbedderConfig
-from graphiti_core.search.search_config import (
+from graphiti_core.search.search_config_recipes import (
     NODE_HYBRID_SEARCH_RRF,
     NODE_HYBRID_SEARCH_NODE_DISTANCE,
 )
