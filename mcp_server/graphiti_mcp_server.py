@@ -124,25 +124,27 @@ async def mcp_endpoint(request: Request):
 
             if not token:
                 return JSONResponse(
-                    {
-                        "jsonrpc": "2.0",
-                        "error": {
-                            "code": -32000,
-                            "message": "Server misconfigured: GRAPHITI_MCP_TOKEN not set",
-                        },
-                    },
+                    {"jsonrpc": "2.0", "error": {"code": -32000, "message": "GRAPHITI_MCP_TOKEN not set"}},
                     status_code=500,
                 )
 
-            if not auth_header.startswith("Bearer ") or auth_header.split(" ", 1)[1] != token:
+            # ✅ Log header for debugging
+            print(f"🔐 Received Authorization header: {auth_header!r}")
+
+            # ✅ Accept both "Bearer token" and plain token
+            if auth_header == token:
+                pass  # valid
+            elif auth_header.startswith("Bearer "):
+                if auth_header.split(" ", 1)[1] == token:
+                    pass  # valid
+                else:
+                    return JSONResponse(
+                        {"jsonrpc": "2.0", "error": {"code": -32604, "message": "Invalid Bearer token"}},
+                        status_code=401,
+                    )
+            else:
                 return JSONResponse(
-                    {
-                        "jsonrpc": "2.0",
-                        "error": {
-                            "code": -32604,
-                            "message": "Invalid or missing Bearer token",
-                        },
-                    },
+                    {"jsonrpc": "2.0", "error": {"code": -32604, "message": "Missing or invalid Authorization header"}},
                     status_code=401,
                 )
 
@@ -468,6 +470,10 @@ async def mcp_preflight():
         {"status": "ok", "message": "Graphiti MCP endpoint ready"},
         status_code=200,
     )
+
+@app.post("/mcp/")
+async def mcp_endpoint_slash(request: Request):
+    return await mcp_endpoint(request)
 
 
 # -------------------------------------------------------
