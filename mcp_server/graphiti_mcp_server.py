@@ -314,13 +314,13 @@ class GraphitiEmbedderConfig(BaseModel):
 
 
     def create_client(self) -> EmbedderClient | None:
-    """Create an embedder client using OpenAI only (Azure disabled)."""
-    if not self.api_key:
-        logger.error('OPENAI_API_KEY must be set to create an embedder client')
-        return None
+        """Create an embedder client using OpenAI only (Azure disabled)."""
+        if not self.api_key:
+            logger.error('OPENAI_API_KEY must be set to create an embedder client')
+            return None
 
-    embedder_config = OpenAIEmbedderConfig(api_key=self.api_key, embedding_model=self.model)
-    return OpenAIEmbedder(config=embedder_config)
+        embedder_config = OpenAIEmbedderConfig(api_key=self.api_key, embedding_model=self.model)
+        return OpenAIEmbedder(config=embedder_config)
        
 
 class Neo4jConfig(BaseModel):
