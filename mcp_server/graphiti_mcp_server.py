@@ -484,11 +484,14 @@ async def mcp_endpoint(request: Request):
         return {"jsonrpc": "2.0", "error": {"code": -32603, "message": str(e)}}
 
 
-# ✅ Preflight endpoints for n8n/browser
+# -------------------------------------------------------
+# ✅ Allow preflight (n8n connectivity check)
+# -------------------------------------------------------
+
 @app.options("/mcp")
-@app.get("/mcp")
+@app.head("/mcp")
 async def mcp_preflight():
-    """Allow n8n or browser clients to check connectivity."""
+    """Allow n8n or browsers to check connectivity."""
     return JSONResponse(
         {"status": "ok", "message": "Graphiti MCP endpoint ready"},
         status_code=200,
