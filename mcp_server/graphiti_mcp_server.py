@@ -6,11 +6,33 @@ Graphiti MCP Server - Exposes Graphiti functionality through the Model Context P
 import asyncio
 import logging
 import os
+import sys
+import argparse
+from typing import Any, Callable, TypedDict, cast
+from datetime import datetime, timezone
 from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
 from neo4j import GraphDatabase
 from graphiti_core import Graphiti
+from graphiti_core.nodes import EpisodicNode, EntityNode
+from graphiti_core.edges import EntityEdge
+from graphiti_core.llm_client import LLMClient, LLMConfig
+from graphiti_core.llm_client.openai_client import OpenAIClient
+from graphiti_core.embedder import EmbedderClient
+from graphiti_core.embedder.openai import OpenAIEmbedder, OpenAIEmbedderConfig
+from graphiti_core.search.search_config import (
+    NODE_HYBRID_SEARCH_RRF,
+    NODE_HYBRID_SEARCH_NODE_DISTANCE,
+)
+from graphiti_core.search.search_filters import SearchFilters
+from graphiti_core.utils.maintenance.graph_data_operations import clear_data
+from graphiti_core.utils import retrieve_episodes
+from graphiti_core.models import EpisodeType
+from azure.identity import DefaultAzureCredential
+from azure.core.credentials import get_bearer_token_provider
+from fastmcp import FastMCP
 
 # -------------------------------------------------------
 # ✅ Environment
@@ -124,45 +146,6 @@ async def mcp_endpoint(request: Request):
                     },
                     status_code=401,
                 )
-
-        # 👇 כאן ימשיך כל הקוד של הכלים (tools/list, graph_summary וכו')
-        if method == "tools/list":
-            return JSONResponse(
-                {
-                    "jsonrpc": "2.0",
-                    "id": body.get("id"),
-                    "result": {"tools": ["graph_list_nodes", "graph_add_node"]},
-                },
-                status_code=200,
-            )
-
-        return JSONResponse(
-            {
-                "jsonrpc": "2.0",
-                "error": {"code": -32601, "message": f"Unknown method: {method}"},
-            },
-            status_code=400,
-        )
-
-    except Exception as e:
-        return JSONResponse(
-            {
-                "jsonrpc": "2.0",
-                "error": {"code": -32603, "message": f"Unexpected error: {e}"},
-            },
-            status_code=500,
-        )
-
-
-# ✅ Preflight endpoints for n8n/browser
-@app.options("/mcp")
-@app.get("/mcp")
-async def mcp_preflight():
-    """Allow n8n or browser clients to check connectivity."""
-    return JSONResponse(
-        {"status": "ok", "message": "Graphiti MCP endpoint ready"},
-        status_code=200,
-    )
 
         # ===========================
         # 🔹 TOOLS LIST
@@ -478,13 +461,20 @@ async def mcp_preflight():
         return {"jsonrpc": "2.0", "error": {"code": -32603, "message": str(e)}}
 
 
-# -------------------------------------------------------
-# ✅ Run manually if needed
-# -------------------------------------------------------
+# ✅ Preflight endpoints for n8n/browser
+@app.options("/mcp")
+@app.get("/mcp")
+async def mcp_preflight():
+    """Allow n8n or browser clients to check connectivity."""
+    return JSONResponse(
+        {"status": "ok", "message": "Graphiti MCP endpoint ready"},
+        status_code=200,
+    )
 
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8010)
+
+# -------------------------------------------------------
+# ✅ Model definitions
+# -------------------------------------------------------
 
 class Requirement(BaseModel):
     """A Requirement represents a specific need, feature, or functionality that a product or service must fulfill.
@@ -565,6 +555,11 @@ ENTITY_TYPES: dict[str, BaseModel] = {
     'Procedure': Procedure,  # type: ignore
 }
 
+# -------------------------------------------------------
+# ✅ Constants
+# -------------------------------------------------------
+
+SMALL_LLM_MODEL = "gpt-4o-mini"
 
 # Type definitions for API responses
 class ErrorResponse(TypedDict):
