@@ -15,7 +15,9 @@ from typing import Any, TypedDict, cast
 # Azure integration disabled for this build
 def create_azure_credential_token_provider():
     raise NotImplementedError("Azure integration is disabled in this build.")
+
 from dotenv import load_dotenv
+from fastapi import FastAPI
 from mcp.server.fastmcp import FastMCP
 from openai import AsyncAzureOpenAI
 from pydantic import BaseModel, Field
@@ -37,28 +39,38 @@ from graphiti_core.search.search_config_recipes import (
 from graphiti_core.search.search_filters import SearchFilters
 from graphiti_core.utils.maintenance.graph_data_operations import clear_data
 
+# Load environment variables
 load_dotenv()
 
-from fastapi import FastAPI
+# -------------------------------------------------------
+# ✅ FastAPI + MCP integration setup
+# -------------------------------------------------------
 
 app = FastAPI(title="Graphiti MCP")
 
-from mcp.server.fastmcp import FastMCP
-from graphiti_core import Graphiti
+# יצירת מופעי Graphiti ו־FastMCP
+mcp = FastMCP()
+graphiti = Graphiti()
 
-mcp = FastMCP(app=app)  # מחבר את ה־MCP לתוך האפליקציה הקיימת
-graphiti = Graphiti()   # יוזם את גרף הידע
+# רישום הנתיבים של MCP לתוך FastAPI
+mcp.register_routes(app)
+print("✅ MCP routes registered on FastAPI app")
 
 @app.on_event("startup")
 def startup_event():
     try:
         mcp.initialize()  # רישום הכלים ב־/mcp
+        print("✅ MCP initialized successfully")
     except Exception as e:
         print(f"⚠️ MCP init error: {e}")
 
 @app.get("/healthz")
 def healthz():
     return {"status": "ok"}
+
+# -------------------------------------------------------
+# Default configs
+# -------------------------------------------------------
 
 DEFAULT_LLM_MODEL = 'gpt-4.1-mini'
 SMALL_LLM_MODEL = 'gpt-4.1-nano'
