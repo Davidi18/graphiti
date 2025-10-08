@@ -1175,7 +1175,9 @@ def main():
             loop = None
 
         if loop and loop.is_running():
-            asyncio.create_task(run_mcp_server())
+            # Avoid nested event loops
+            import threading
+            threading.Thread(target=lambda: asyncio.run(run_mcp_server()), daemon=True).start()
         else:
             asyncio.run(run_mcp_server())
     except Exception as e:
