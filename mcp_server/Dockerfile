@@ -35,6 +35,8 @@ RUN pip install python-dotenv
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev
 
+RUN pip install model-context-protocol python-dotenv
+
 # Copy application code
 COPY graphiti_mcp_server.py ./
 
