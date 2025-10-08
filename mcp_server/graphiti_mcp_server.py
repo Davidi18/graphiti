@@ -12,7 +12,9 @@ from collections.abc import Callable
 from datetime import datetime, timezone
 from typing import Any, TypedDict, cast
 
-from azure.identity import DefaultAzureCredential, get_bearer_token_provider
+# Azure integration disabled for this build
+def create_azure_credential_token_provider():
+    raise NotImplementedError("Azure integration is disabled in this build.")
 from dotenv import load_dotenv
 from mcp.server.fastmcp import FastMCP
 from openai import AsyncAzureOpenAI
@@ -219,48 +221,13 @@ class GraphitiLLMConfig(BaseModel):
             os.environ.get('AZURE_OPENAI_USE_MANAGED_IDENTITY', 'false').lower() == 'true'
         )
 
-        if azure_openai_endpoint is None:
-            # Setup for OpenAI API
-            # Log if empty model was provided
-            if model_env == '':
-                logger.debug(
-                    f'MODEL_NAME environment variable not set, using default: {DEFAULT_LLM_MODEL}'
-                )
-            elif not model_env.strip():
-                logger.warning(
-                    f'Empty MODEL_NAME environment variable, using default: {DEFAULT_LLM_MODEL}'
-                )
-
-            return cls(
-                api_key=os.environ.get('OPENAI_API_KEY'),
-                model=model,
-                small_model=small_model,
-                temperature=float(os.environ.get('LLM_TEMPERATURE', '0.0')),
-            )
-        else:
-            # Setup for Azure OpenAI API
-            # Log if empty deployment name was provided
-            if azure_openai_deployment_name is None:
-                logger.error('AZURE_OPENAI_DEPLOYMENT_NAME environment variable not set')
-
-                raise ValueError('AZURE_OPENAI_DEPLOYMENT_NAME environment variable not set')
-            if not azure_openai_use_managed_identity:
-                # api key
-                api_key = os.environ.get('OPENAI_API_KEY', None)
-            else:
-                # Managed identity
-                api_key = None
-
-            return cls(
-                azure_openai_use_managed_identity=azure_openai_use_managed_identity,
-                azure_openai_endpoint=azure_openai_endpoint,
-                api_key=api_key,
-                azure_openai_api_version=azure_openai_api_version,
-                azure_openai_deployment_name=azure_openai_deployment_name,
-                model=model,
-                small_model=small_model,
-                temperature=float(os.environ.get('LLM_TEMPERATURE', '0.0')),
-            )
+        # Always use OpenAI API (Azure disabled)
+        return cls(
+            api_key=os.environ.get('OPENAI_API_KEY'),
+            model=model,
+            small_model=small_model,
+            temperature=float(os.environ.get('LLM_TEMPERATURE', '0.0')),
+        )
 
     @classmethod
     def from_cli_and_env(cls, args: argparse.Namespace) -> 'GraphitiLLMConfig':
@@ -295,55 +262,19 @@ class GraphitiLLMConfig(BaseModel):
             LLMClient instance
         """
 
-        if self.azure_openai_endpoint is not None:
-            # Azure OpenAI API setup
-            if self.azure_openai_use_managed_identity:
-                # Use managed identity for authentication
-                token_provider = create_azure_credential_token_provider()
-                return AzureOpenAILLMClient(
-                    azure_client=AsyncAzureOpenAI(
-                        azure_endpoint=self.azure_openai_endpoint,
-                        azure_deployment=self.azure_openai_deployment_name,
-                        api_version=self.azure_openai_api_version,
-                        azure_ad_token_provider=token_provider,
-                    ),
-                    config=LLMConfig(
-                        api_key=self.api_key,
-                        model=self.model,
-                        small_model=self.small_model,
-                        temperature=self.temperature,
-                    ),
-                )
-            elif self.api_key:
-                # Use API key for authentication
-                return AzureOpenAILLMClient(
-                    azure_client=AsyncAzureOpenAI(
-                        azure_endpoint=self.azure_openai_endpoint,
-                        azure_deployment=self.azure_openai_deployment_name,
-                        api_version=self.azure_openai_api_version,
-                        api_key=self.api_key,
-                    ),
-                    config=LLMConfig(
-                        api_key=self.api_key,
-                        model=self.model,
-                        small_model=self.small_model,
-                        temperature=self.temperature,
-                    ),
-                )
-            else:
-                raise ValueError('OPENAI_API_KEY must be set when using Azure OpenAI API')
-
+        # Azure disabled – always use OpenAIClient
         if not self.api_key:
             raise ValueError('OPENAI_API_KEY must be set when using OpenAI API')
-
+        
         llm_client_config = LLMConfig(
             api_key=self.api_key, model=self.model, small_model=self.small_model
         )
-
+        
         # Set temperature
         llm_client_config.temperature = self.temperature
-
+        
         return OpenAIClient(config=llm_client_config)
+
 
 
 class GraphitiEmbedderConfig(BaseModel):
