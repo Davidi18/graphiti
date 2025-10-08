@@ -1146,28 +1146,16 @@ async def run_mcp_server():
 
         # Main MCP endpoint (JSON-RPC)
         @app.post("/mcp")
-        async def handle_mcp(request: Request):
-            try:
-                payload = await request.json()
-                response = await mcp.dispatch(payload)
-                return JSONResponse(response)
-            except Exception as e:
-                logger.error(f"MCP /mcp handler error: {str(e)}")
-                return JSONResponse({"error": str(e)}, status_code=500)
+async def handle_mcp(request: Request):
+    try:
+        payload = await request.json()
 
-        # Run both servers in parallel (SSE + HTTP)
-        async def start_sse():
-            await mcp.run_sse_async()
+        if not hasattr(mcp, "dispatch"):
+            return JSONResponse({"error": "MCP instance not ready"}, status_code=503)
 
-        import asyncio
-        loop = asyncio.get_event_loop()
-        loop.create_task(start_sse())
+        response = await mcp.dispatch(payload)
+        return JSONResponse(response)
 
-        config = uvicorn.Config(
-            app,
-            host=mcp.settings.host or "0.0.0.0",
-            port=mcp.settings.port or 8010,
-            log_level="info",
-        )
-        server = uvicorn.Server(config)
-        await server.serve()
+    except Exception as e:
+        logger.error(f"MCP /mcp handler error: {str(e)}")
+        return JSONResponse({"error": str(e)}, status_code=500)
