@@ -267,26 +267,134 @@ async def mcp_endpoint(request: Request):
                 "result": {
                     "tools": [
                         # --- Basic Tools ---
-                        {"name": "graph_summary", "description": "Summarize the current knowledge graph"},
-                        {"name": "graph_list_nodes", "description": "List nodes in the graph"},
-                        {"name": "graph_list_relations", "description": "List relationships in the graph"},
-                        {"name": "graph_add_node", "description": "Add a new node to the graph"},
-                        {"name": "graph_add_relation", "description": "Create a relationship between two nodes"},
-                        {"name": "graph_clear_data", "description": "Delete all nodes and relationships"},
-
-                        # --- Analytical Tools ---
-                        {"name": "graph_find_connections", "description": "Find paths or connections between entities"},
-                        {"name": "graph_search_entities", "description": "Search entities by name or property"},
-                        {"name": "graph_analyze_cluster", "description": "Analyze node clusters based on relationships"},
-                        {"name": "graph_extract_entities", "description": "Extract entities from a given text"},
-                        {"name": "graph_healthcheck", "description": "Check the health of Neo4j and embeddings"},
-
-                        # --- AI / Semantic Tools ---
-                        {"name": "graph_expand_from_text", "description": "Generate new entities and links from text using OpenAI"},
-                        {"name": "graph_embed_entities", "description": "Embed entities for semantic similarity search"},
-                        {"name": "graph_query_llm", "description": "Run natural language queries on the graph"},
-                        {"name": "graph_compare_nodes", "description": "Compare entities semantically"},
-                        {"name": "graph_autolink", "description": "Automatically link related entities based on meaning"}
+                        {
+                            "name": "graph_summary",
+                            "description": "Summarize the current knowledge graph",
+                            "inputSchema": {"type": "object", "properties": {}}
+                        },
+                        {
+                            "name": "graph_list_nodes",
+                            "description": "List nodes in the graph",
+                            "inputSchema": {"type": "object", "properties": {}}
+                        },
+                        {
+                            "name": "graph_list_relations",
+                            "description": "List relationships in the graph",
+                            "inputSchema": {"type": "object", "properties": {}}
+                        },
+                        {
+                            "name": "graph_add_node",
+                            "description": "Add a new node to the graph",
+                            "inputSchema": {
+                                "type": "object",
+                                "properties": {
+                                    "name": {"type": "string", "description": "Node name"},
+                                    "label": {"type": "string", "description": "Node label"},
+                                    "properties": {"type": "object", "description": "Additional properties"}
+                                },
+                                "required": ["name"]
+                            }
+                        },
+                        {
+                            "name": "graph_add_relation",
+                            "description": "Create a relationship between two nodes",
+                            "inputSchema": {
+                                "type": "object",
+                                "properties": {
+                                    "source": {"type": "string", "description": "Source node name"},
+                                    "target": {"type": "string", "description": "Target node name"},
+                                    "relation": {"type": "string", "description": "Relation type"}
+                                },
+                                "required": ["source", "target"]
+                            }
+                        },
+                        {
+                            "name": "graph_clear_data",
+                            "description": "Delete all nodes and relationships",
+                            "inputSchema": {"type": "object", "properties": {}}
+                        },
+                        {
+                            "name": "graph_find_connections",
+                            "description": "Find paths or connections between entities",
+                            "inputSchema": {
+                                "type": "object",
+                                "properties": {
+                                    "start": {"type": "string", "description": "Start node name"},
+                                    "end": {"type": "string", "description": "End node name"}
+                                },
+                                "required": ["start", "end"]
+                            }
+                        },
+                        {
+                            "name": "graph_search_entities",
+                            "description": "Search entities by name or property",
+                            "inputSchema": {
+                                "type": "object",
+                                "properties": {
+                                    "term": {"type": "string", "description": "Search term"}
+                                },
+                                "required": ["term"]
+                            }
+                        },
+                        {
+                            "name": "graph_analyze_cluster",
+                            "description": "Analyze node clusters based on relationships",
+                            "inputSchema": {"type": "object", "properties": {}}
+                        },
+                        {
+                            "name": "graph_extract_entities",
+                            "description": "Extract entities from a given text",
+                            "inputSchema": {
+                                "type": "object",
+                                "properties": {
+                                    "text": {"type": "string", "description": "Text to extract entities from"}
+                                },
+                                "required": ["text"]
+                            }
+                        },
+                        {
+                            "name": "graph_healthcheck",
+                            "description": "Check the health of Neo4j and embeddings",
+                            "inputSchema": {"type": "object", "properties": {}}
+                        },
+                        {
+                            "name": "graph_expand_from_text",
+                            "description": "Generate new entities and links from text using OpenAI",
+                            "inputSchema": {
+                                "type": "object",
+                                "properties": {
+                                    "text": {"type": "string", "description": "Text to expand from"},
+                                    "autoWrite": {"type": "boolean", "description": "Automatically write to Neo4j"}
+                                },
+                                "required": ["text"]
+                            }
+                        },
+                        {
+                            "name": "graph_embed_entities",
+                            "description": "Embed entities for semantic similarity search",
+                            "inputSchema": {"type": "object", "properties": {}}
+                        },
+                        {
+                            "name": "graph_query_llm",
+                            "description": "Run natural language queries on the graph",
+                            "inputSchema": {
+                                "type": "object",
+                                "properties": {
+                                    "query": {"type": "string", "description": "Natural language query"}
+                                },
+                                "required": ["query"]
+                            }
+                        },
+                        {
+                            "name": "graph_compare_nodes",
+                            "description": "Compare entities semantically",
+                            "inputSchema": {"type": "object", "properties": {}}
+                        },
+                        {
+                            "name": "graph_autolink",
+                            "description": "Automatically link related entities based on meaning",
+                            "inputSchema": {"type": "object", "properties": {}}
+                        }
                     ]
                 },
             }
