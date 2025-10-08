@@ -86,30 +86,79 @@ async def mcp_endpoint(request: Request):
                 "id": body.get("id"),
                 "result": {
                     "tools": [
-            # --- Basic Tools ---
-            {"name": "graph_summary", "description": "Summarize the current knowledge graph"},
-            {"name": "graph_list_nodes", "description": "List nodes in the graph"},
-            {"name": "graph_list_relations", "description": "List relationships in the graph"},
-            {"name": "graph_add_node", "description": "Add a new node to the graph"},
-            {"name": "graph_add_relation", "description": "Create a relationship between two nodes"},
-            {"name": "graph_clear_data", "description": "Delete all nodes and relationships"},
-        
-            # --- Analytical Tools ---
-            {"name": "graph_find_connections", "description": "Find paths or connections between entities"},
-            {"name": "graph_search_entities", "description": "Search entities by name or property"},
-            {"name": "graph_analyze_cluster", "description": "Analyze node clusters based on relationships"},
-            {"name": "graph_extract_entities", "description": "Extract entities from a given text"},
-            {"name": "graph_healthcheck", "description": "Check the health of Neo4j and embeddings"},
-        
-            # --- AI / Semantic Tools ---
-            {"name": "graph_expand_from_text", "description": "Generate new entities and links from text using OpenAI"},
-            {"name": "graph_embed_entities", "description": "Embed entities for semantic similarity search"},
-            {"name": "graph_query_llm", "description": "Run natural language queries on the graph"},
-            {"name": "graph_compare_nodes", "description": "Compare entities semantically"},
-            {"name": "graph_autolink", "description": "Automatically link related entities based on meaning"}
-        ]
+                        # --- Basic Tools ---
+                        {
+                            "name": "graph_summary",
+                            "description": "Summarize the current knowledge graph",
+                        },
+                        {
+                            "name": "graph_list_nodes",
+                            "description": "List nodes in the graph",
+                        },
+                        {
+                            "name": "graph_list_relations",
+                            "description": "List relationships in the graph",
+                        },
+                        {
+                            "name": "graph_add_node",
+                            "description": "Add a new node to the graph",
+                        },
+                        {
+                            "name": "graph_add_relation",
+                            "description": "Create a relationship between two nodes",
+                        },
+                        {
+                            "name": "graph_clear_data",
+                            "description": "Delete all nodes and relationships",
+                        },
+
+                        # --- Analytical Tools ---
+                        {
+                            "name": "graph_find_connections",
+                            "description": "Find paths or connections between entities",
+                        },
+                        {
+                            "name": "graph_search_entities",
+                            "description": "Search entities by name or property",
+                        },
+                        {
+                            "name": "graph_analyze_cluster",
+                            "description": "Analyze node clusters based on relationships",
+                        },
+                        {
+                            "name": "graph_extract_entities",
+                            "description": "Extract entities from a given text",
+                        },
+                        {
+                            "name": "graph_healthcheck",
+                            "description": "Check the health of Neo4j and embeddings",
+                        },
+
+                        # --- AI / Semantic Tools ---
+                        {
+                            "name": "graph_expand_from_text",
+                            "description": "Generate new entities and links from text using OpenAI",
+                        },
+                        {
+                            "name": "graph_embed_entities",
+                            "description": "Embed entities for semantic similarity search",
+                        },
+                        {
+                            "name": "graph_query_llm",
+                            "description": "Run natural language queries on the graph",
+                        },
+                        {
+                            "name": "graph_compare_nodes",
+                            "description": "Compare entities semantically",
+                        },
+                        {
+                            "name": "graph_autolink",
+                            "description": "Automatically link related entities based on meaning",
+                        },
+                    ]
                 },
-            }        # ===========================
+            }
+        # ===========================
         # 🔹 TOOLS CALL
         # ===========================
         elif method == "tools/call":
@@ -203,19 +252,45 @@ async def mcp_endpoint(request: Request):
                 text = params.get("arguments", {}).get("text", "")
                 api_key = os.getenv("OPENAI_API_KEY")
                 if not api_key:
-                    return {"jsonrpc": "2.0", "error": {"code": -32603, "message": "AI features disabled (missing GRAPHITI_OPENAI_API_KEY)"}}
+                    return {
+                        "jsonrpc": "2.0",
+                        "error": {
+                            "code": -32603,
+                            "message": "AI features disabled (missing GRAPHITI_OPENAI_API_KEY)",
+                        },
+                    }
                 from openai import OpenAI
+
                 client = OpenAI(api_key=api_key)
                 response = client.chat.completions.create(
                     model="gpt-4o-mini",
-                    messages=[{"role": "system", "content": "Extract entities (Person, Company, Location, Project) from text"},
-                              {"role": "user", "content": text}]
+                    messages=[
+                        {
+                            "role": "system",
+                            "content": "Extract entities (Person, Company, Location, Project) from text",
+                        },
+                        {"role": "user", "content": text},
+                    ],
                 )
-                return {"jsonrpc": "2.0", "id": body.get("id"),
-                        "result": {"content": [{"type": "text", "text": response.choices[0].message.content.strip("`").replace("json", "").strip()
-}]}}
-
-                        elif tool_name == "graph_healthcheck":
+                extracted_text = (
+                    response.choices[0]
+                    .message.content.strip("`")
+                    .replace("json", "")
+                    .strip()
+                )
+                return {
+                    "jsonrpc": "2.0",
+                    "id": body.get("id"),
+                    "result": {
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": extracted_text,
+                            }
+                        ]
+                    },
+                }
+            elif tool_name == "graph_healthcheck":
                 try:
                     graphiti.driver.verify_connectivity()
                     status = "connected"
