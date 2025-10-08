@@ -442,6 +442,9 @@ mcp = FastMCP(
     instructions=GRAPHITI_MCP_INSTRUCTIONS,
 )
 
+# Register all tools declared with @mcp.tool()
+mcp.register_all_tools(globals())
+
 # Initialize Graphiti client
 graphiti_client: Graphiti | None = None
 
