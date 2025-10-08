@@ -1145,7 +1145,7 @@ async def run_mcp_server():
             return {"status": "ok", "mode": "Graphiti MCP"}
 
         # Main MCP endpoint (JSON-RPC)
-        @app.post("/mcp")
+@app.post("/mcp")
 async def handle_mcp(request: Request):
     try:
         payload = await request.json()
