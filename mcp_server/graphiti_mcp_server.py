@@ -13,7 +13,7 @@ import threading
 from typing import Any, Callable, TypedDict, cast
 from datetime import datetime, timezone
 from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
@@ -143,6 +143,13 @@ def verify_bearer_token(credentials: HTTPAuthorizationCredentials = Depends(secu
 # -------------------------------------------------------
 # ✅ Manual MCP handler
 # -------------------------------------------------------
+
+@app.get("/mcp/stream")
+async def mcp_stream():
+    """Fake stream endpoint for n8n compatibility."""
+    async def event_generator():
+        yield json.dumps({"status": "ok", "message": "Graphiti MCP stream alive"}) + "\n"
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
 
 # ✅ Manual MCP handler
 # --------------------------------------------------
