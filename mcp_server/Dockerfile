@@ -50,4 +50,4 @@ USER app
 EXPOSE 8010
 
 # Command to run the application
-CMD ["python", "-u", "graphiti_mcp_server.py", "--host", "0.0.0.0"]
+CMD ["python", "-u", "graphiti_mcp_server.py", "--host", "0.0.0.0", "--port", "8010"]
