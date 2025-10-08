@@ -144,12 +144,53 @@ def verify_bearer_token(credentials: HTTPAuthorizationCredentials = Depends(secu
 # ✅ Manual MCP handler
 # -------------------------------------------------------
 
-@app.get("/mcp/stream")
-async def mcp_stream():
-    """Fake stream endpoint for n8n compatibility."""
+@app.options("/mcp")
+@app.head("/mcp")
+async def mcp_preflight():
+    """Preflight endpoint for CORS and connectivity checks."""
+    return JSONResponse(
+        {"status": "ok", "message": "Graphiti MCP endpoint ready"},
+        status_code=200,
+        headers={"Access-Control-Allow-Origin": "*"}
+    )
+
+@app.get("/mcp")
+async def mcp_get_endpoint(request: Request):
+    """
+    HTTP GET endpoint for MCP - Opens SSE stream for server-to-client messages.
+    This is part of the Streamable HTTP transport specification.
+    """
+    print(f"🌊 MCP GET request (SSE stream) from {request.client}")
+    
+    # Check if client accepts SSE
+    accept_header = request.headers.get("Accept", "")
+    if "text/event-stream" not in accept_header:
+        # If not SSE, return status (for connectivity checks)
+        return JSONResponse(
+            {"status": "ok", "message": "Graphiti MCP endpoint ready"},
+            status_code=200
+        )
+    
     async def event_generator():
-        yield json.dumps({"status": "ok", "message": "Graphiti MCP stream alive"}) + "\n"
-    return StreamingResponse(event_generator(), media_type="text/event-stream")
+        try:
+            # Keep connection alive - server can send requests/notifications here
+            while True:
+                # Send heartbeat to keep connection alive
+                yield f": heartbeat\n\n"
+                await asyncio.sleep(30)
+        except Exception as e:
+            print(f"❌ SSE stream error: {e}")
+    
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+            "Access-Control-Allow-Origin": "*"
+        }
+    )
 
 # ✅ Manual MCP handler
 # --------------------------------------------------
@@ -160,6 +201,9 @@ async def mcp_endpoint(request: Request):
     try:
         body = await request.json()
         method = body.get("method")
+        
+        # ✅ Log all requests for debugging
+        print(f"📨 MCP Request: method={method}, id={body.get('id')}")
 
         # ✅ Authentication: allow tools/list without auth, require Bearer for others
         if method != "tools/list":
@@ -505,19 +549,7 @@ async def mcp_endpoint(request: Request):
         return {"jsonrpc": "2.0", "error": {"code": -32603, "message": str(e)}}
 
 
-# -------------------------------------------------------
-# ✅ Allow preflight (n8n connectivity check)
-# -------------------------------------------------------
-
-@app.options("/mcp")
-@app.head("/mcp")
-@app.get("/mcp")
-async def mcp_preflight():
-    """Allow n8n or browser clients to check connectivity (for HTTP stream/SSE)."""
-    return JSONResponse(
-        {"status": "ok", "message": "Graphiti MCP endpoint ready"},
-        status_code=200,
-    )
+# Note: Preflight endpoints (OPTIONS, HEAD, GET) are defined above with @app.post("/mcp")
 
 @app.post("/mcp/")
 async def mcp_endpoint_slash(request: Request):
