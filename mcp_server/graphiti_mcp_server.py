@@ -1139,23 +1139,30 @@ async def run_mcp_server():
 
         app = FastAPI()
 
-        # Health check
+        # Health check endpoint
         @app.get("/health")
         async def health():
             return {"status": "ok", "mode": "Graphiti MCP"}
 
-        # Main MCP endpoint (JSON-RPC)
-@app.post("/mcp")
-async def handle_mcp(request: Request):
-    try:
-        payload = await request.json()
+        # MCP JSON-RPC endpoint
+        @app.post("/mcp")
+        async def handle_mcp(request: Request):
+            try:
+                payload = await request.json()
 
-        if not hasattr(mcp, "dispatch"):
-            return JSONResponse({"error": "MCP instance not ready"}, status_code=503)
+                if not hasattr(mcp, "dispatch"):
+                    return JSONResponse({"error": "MCP instance not ready"}, status_code=503)
 
-        response = await mcp.dispatch(payload)
-        return JSONResponse(response)
+                response = await mcp.dispatch(payload)
+                return JSONResponse(response)
 
-    except Exception as e:
-        logger.error(f"MCP /mcp handler error: {str(e)}")
-        return JSONResponse({"error": str(e)}, status_code=500)
+            except Exception as e:
+                logger.error(f"MCP /mcp handler error: {str(e)}")
+                return JSONResponse({"error": str(e)}, status_code=500)
+
+        # Start the server
+        uvicorn.run(
+            app,
+            host=mcp.settings.host or "0.0.0.0",
+            port=int(mcp.settings.port or 8010),
+        )
