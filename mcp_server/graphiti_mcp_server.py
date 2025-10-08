@@ -43,6 +43,19 @@ from fastapi import FastAPI
 
 app = FastAPI(title="Graphiti MCP")
 
+from mcp.server.fastmcp import FastMCP
+from graphiti_core import Graphiti
+
+mcp = FastMCP(app=app)  # מחבר את ה־MCP לתוך האפליקציה הקיימת
+graphiti = Graphiti()   # יוזם את גרף הידע
+
+@app.on_event("startup")
+def startup_event():
+    try:
+        mcp.initialize()  # רישום הכלים ב־/mcp
+    except Exception as e:
+        print(f"⚠️ MCP init error: {e}")
+
 @app.get("/healthz")
 def healthz():
     return {"status": "ok"}
@@ -51,11 +64,7 @@ DEFAULT_LLM_MODEL = 'gpt-4.1-mini'
 SMALL_LLM_MODEL = 'gpt-4.1-nano'
 DEFAULT_EMBEDDER_MODEL = 'text-embedding-3-small'
 
-# Semaphore limit for concurrent Graphiti operations.
-# Decrease this if you're experiencing 429 rate limit errors from your LLM provider.
-# Increase if you have high rate limits.
 SEMAPHORE_LIMIT = int(os.getenv('SEMAPHORE_LIMIT', 10))
-
 
 class Requirement(BaseModel):
     """A Requirement represents a specific need, feature, or functionality that a product or service must fulfill.
