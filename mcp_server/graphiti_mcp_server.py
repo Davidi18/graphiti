@@ -50,7 +50,11 @@ app = FastAPI(title="Graphiti MCP")
 
 # יצירת מופעי Graphiti ו־FastMCP
 mcp = FastMCP()
-graphiti = Graphiti()
+graphiti = Graphiti(
+    uri=os.getenv("NEO4J_URI", "bolt://neo4j:7687"),
+    user=os.getenv("NEO4J_USER", "neo4j"),
+    password=os.getenv("NEO4J_PASSWORD", "demodemo")
+)
 
 # רישום הנתיבים של MCP לתוך FastAPI
 mcp.register_routes(app)
