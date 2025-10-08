@@ -54,6 +54,9 @@ SEMAPHORE_LIMIT = int(os.getenv('SEMAPHORE_LIMIT', 10))
 # ✅ FastAPI + MCP + Graphiti initialization
 # -------------------------------------------------------
 
+# יצירת FastAPI
+app = FastAPI(title="Graphiti MCP")
+
 # יצירת מופע Graphiti שמחובר ל־Neo4j
 graphiti = Graphiti(
     uri=os.getenv("NEO4J_URI", "bolt://neo4j:7687"),
@@ -61,9 +64,15 @@ graphiti = Graphiti(
     password=os.getenv("NEO4J_PASSWORD", "demodemo")
 )
 
-# יצירת MCP (כולל FastAPI פנימי)
+# יצירת MCP (בלי להעביר app)
 mcp = FastMCP()
-app: FastAPI = mcp.app  # שימוש ב־FastAPI מתוך MCP
+
+# הוספת הנתיבים של MCP ל־FastAPI
+try:
+    app.include_router(mcp.router)
+    print("✅ MCP routes included in FastAPI")
+except Exception as e:
+    print(f"⚠️ Failed to include MCP router: {e}")
 
 @app.on_event("startup")
 async def startup_event():
