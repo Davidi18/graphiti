@@ -1169,13 +1169,10 @@ def run_mcp_server_sync():
     """Run the MCP server (sync version)."""
     import uvicorn
     try:
-        # נשתמש ישירות באובייקט app שכבר קיים בקובץ
-        uvicorn.run(app, host=mcp.settings.host or "0.0.0.0", port=int(mcp.settings.port or 8010))
+        uvicorn.run(app, host="0.0.0.0", port=8010)
     except Exception as e:
         logger.error(f"Error initializing Graphiti MCP server: {str(e)}")
         raise
-
-
 
 def main():
     """Main function to run the Graphiti MCP server."""
