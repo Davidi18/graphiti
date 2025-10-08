@@ -332,7 +332,7 @@ async def mcp_endpoint(request: Request):
                     label = args.get("label", "Entity")
                     props = args.get("properties", {})
                     with graphiti.driver.session() as session:
-                        session.run(f"CREATE (n:{label} $props)", props={"name": name, **props})
+                        session.run(f"CREATE (n:{label}) SET n = $props", {"props": {"name": name, **props}})
                     return {
                         "jsonrpc": "2.0",
                         "id": body.get("id"),
