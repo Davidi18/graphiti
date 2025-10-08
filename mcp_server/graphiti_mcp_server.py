@@ -39,6 +39,13 @@ from graphiti_core.utils.maintenance.graph_data_operations import clear_data
 
 load_dotenv()
 
+from fastapi import FastAPI
+
+app = FastAPI(title="Graphiti MCP")
+
+@app.get("/healthz")
+def healthz():
+    return {"status": "ok"}
 
 DEFAULT_LLM_MODEL = 'gpt-4.1-mini'
 SMALL_LLM_MODEL = 'gpt-4.1-nano'
