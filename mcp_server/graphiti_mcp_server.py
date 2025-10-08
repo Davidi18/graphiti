@@ -1166,8 +1166,9 @@ async def run_mcp_server():
 
 
 def run_mcp_server_sync():
-    """Run the MCP server (non-async version)."""
+    """Run the MCP server synchronously using Uvicorn."""
     import uvicorn
+    from graphiti_mcp_server import app, mcp  # ייבוא מפורש כדי לוודא גישה לאובייקטים הראשיים
     uvicorn.run(app, host=mcp.settings.host or "0.0.0.0", port=int(mcp.settings.port or 8010))
 
 
