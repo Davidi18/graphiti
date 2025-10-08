@@ -109,6 +109,21 @@ async def mcp_endpoint(request: Request):
                     {"jsonrpc": "2.0", "error": {"code": -32604, "message": "Invalid or missing Bearer token"}},
                     status_code=401,
                 )
+
+        # 👇 כאן תמשיך לטפל בכלי ה-MCP (tools/call וכו')
+        return JSONResponse(
+            {"jsonrpc": "2.0", "result": {"message": "MCP request received successfully"}},
+            status_code=200,
+        )
+
+    except Exception as e:
+        return JSONResponse(
+            {"jsonrpc": "2.0", "error": {"code": -32603, "message": f"Unexpected error: {e}"}},
+            status_code=500,
+        )
+
+
+# ✅ Preflight endpoints for n8n/browser
 @app.options("/mcp")
 @app.get("/mcp")
 async def mcp_preflight():
