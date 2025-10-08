@@ -31,7 +31,7 @@ RUN groupadd -r app && useradd -r -d /app -g app app
 COPY pyproject.toml uv.lock ./
 
 # Install dotenv + MCP SDK (fastmcp)
-RUN pip install python-dotenv openai fastapi uvicorn \
+RUN pip install python-dotenv openai fastapi uvicorn fastmcp neo4j pydantic \
     git+https://github.com/modelcontextprotocol/python-sdk.git \
     git+https://github.com/Davidi18/graphiti.git
 
