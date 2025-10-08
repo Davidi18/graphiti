@@ -14,6 +14,7 @@ from typing import Any, Callable, TypedDict, cast
 from datetime import datetime, timezone
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
 from neo4j import GraphDatabase
@@ -67,6 +68,19 @@ graphiti.driver = GraphDatabase.driver(
 # -------------------------------------------------------
 
 app = FastAPI(title="Graphiti MCP")
+
+# -------------------------------------------------------
+# ✅ Allow n8n / browser / SSE clients (preflight + CORS)
+# -------------------------------------------------------
+
+# Allow CORS from anywhere (you can restrict later to your n8n domain)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 print("🚀 Graphiti MCP (OpenAI-only build) started successfully.")
 print("✅ FastAPI app initialized with Neo4j connection (sync driver).")
@@ -490,8 +504,9 @@ async def mcp_endpoint(request: Request):
 
 @app.options("/mcp")
 @app.head("/mcp")
+@app.get("/mcp")
 async def mcp_preflight():
-    """Allow n8n or browsers to check connectivity."""
+    """Allow n8n or browser clients to check connectivity (for HTTP stream/SSE)."""
     return JSONResponse(
         {"status": "ok", "message": "Graphiti MCP endpoint ready"},
         status_code=200,
