@@ -58,11 +58,14 @@ def status():
 
 @app.post("/mcp")
 async def mcp_endpoint(request: Request):
-    """Endpoint to simulate minimal MCP protocol behavior."""
+    """Main MCP endpoint for Graphiti operations."""
     try:
         body = await request.json()
         method = body.get("method")
 
+        # ===========================
+        # 🔹 TOOLS LIST
+        # ===========================
         if method == "tools/list":
             return {
                 "jsonrpc": "2.0",
@@ -72,27 +75,135 @@ async def mcp_endpoint(request: Request):
                         {"name": "graph_summary", "description": "Summarize the current knowledge graph"},
                         {"name": "graph_list_nodes", "description": "List nodes in the graph"},
                         {"name": "graph_list_relations", "description": "List relationships in the graph"},
+                        {"name": "graph_add_node", "description": "Add a new node to the graph"},
+                        {"name": "graph_add_relation", "description": "Create a relationship between two nodes"},
+                        {"name": "graph_clear_data", "description": "Delete all nodes and relationships"},
                     ]
                 },
             }
 
+        # ===========================
+        # 🔹 TOOLS CALL
+        # ===========================
         elif method == "tools/call":
             params = body.get("params", {})
             tool_name = params.get("name")
+            args = params.get("arguments", {})
 
-            if tool_name == "graph_summary":
-                return {
-                    "jsonrpc": "2.0",
-                    "id": body.get("id"),
-                    "result": {"content": [{"type": "text", "text": "Graphiti MCP is connected and ready ✅"}]},
-                }
+            # ======================
+            # ✅ READ OPERATIONS
+            # ======================
+            if tool_name == "graph_list_nodes":
+                try:
+                    with graphiti.driver.session() as session:
+                        result = session.run("MATCH (n) RETURN n LIMIT 50")
+                        nodes = [r["n"]._properties for r in result]
+                    return {
+                        "jsonrpc": "2.0",
+                        "id": body.get("id"),
+                        "result": {"content": [{"type": "json", "text": nodes}]}
+                    }
+                except Exception as e:
+                    return {"jsonrpc": "2.0", "error": {"code": -32603, "message": str(e)}}
 
+            elif tool_name == "graph_list_relations":
+                try:
+                    with graphiti.driver.session() as session:
+                        result = session.run("MATCH (a)-[r]->(b) RETURN a,b,type(r) AS rel LIMIT 50")
+                        rels = [
+                            {
+                                "from": record["a"]._properties.get("name", ""),
+                                "to": record["b"]._properties.get("name", ""),
+                                "type": record["rel"]
+                            }
+                            for record in result
+                        ]
+                    return {
+                        "jsonrpc": "2.0",
+                        "id": body.get("id"),
+                        "result": {"content": [{"type": "json", "text": rels}]}
+                    }
+                except Exception as e:
+                    return {"jsonrpc": "2.0", "error": {"code": -32603, "message": str(e)}}
+
+            elif tool_name == "graph_summary":
+                try:
+                    with graphiti.driver.session() as session:
+                        node_count = session.run("MATCH (n) RETURN count(n) AS count").single()["count"]
+                        rel_count = session.run("MATCH ()-[r]->() RETURN count(r) AS count").single()["count"]
+                    return {
+                        "jsonrpc": "2.0",
+                        "id": body.get("id"),
+                        "result": {
+                            "content": [{
+                                "type": "text",
+                                "text": f"📊 Graph summary:\nNodes: {node_count}\nRelations: {rel_count}"
+                            }]
+                        },
+                    }
+                except Exception as e:
+                    return {"jsonrpc": "2.0", "error": {"code": -32603, "message": str(e)}}
+
+            # ======================
+            # ✏️ WRITE OPERATIONS
+            # ======================
+            elif tool_name == "graph_add_node":
+                try:
+                    name = args.get("name")
+                    label = args.get("label", "Entity")
+                    props = args.get("properties", {})
+                    with graphiti.driver.session() as session:
+                        session.run(f"CREATE (n:{label} $props)", props={"name": name, **props})
+                    return {
+                        "jsonrpc": "2.0",
+                        "id": body.get("id"),
+                        "result": {"content": [{"type": "text", "text": f"✅ Node '{name}' added."}]}
+                    }
+                except Exception as e:
+                    return {"jsonrpc": "2.0", "error": {"code": -32603, "message": str(e)}}
+
+            elif tool_name == "graph_add_relation":
+                try:
+                    src = args.get("source")
+                    dst = args.get("target")
+                    rel = args.get("relation", "RELATES_TO")
+                    with graphiti.driver.session() as session:
+                        session.run(
+                            f"MATCH (a {{name:$src}}), (b {{name:$dst}}) CREATE (a)-[:{rel}]->(b)",
+                            {"src": src, "dst": dst}
+                        )
+                    return {
+                        "jsonrpc": "2.0",
+                        "id": body.get("id"),
+                        "result": {"content": [{"type": "text", "text": f"✅ Relation {src} -[{rel}]-> {dst} added."}]}
+                    }
+                except Exception as e:
+                    return {"jsonrpc": "2.0", "error": {"code": -32603, "message": str(e)}}
+
+            elif tool_name == "graph_clear_data":
+                try:
+                    with graphiti.driver.session() as session:
+                        session.run("MATCH (n) DETACH DELETE n")
+                    return {
+                        "jsonrpc": "2.0",
+                        "id": body.get("id"),
+                        "result": {"content": [{"type": "text", "text": "🧹 All graph data cleared."}]}
+                    }
+                except Exception as e:
+                    return {"jsonrpc": "2.0", "error": {"code": -32603, "message": str(e)}}
+
+            # ======================
+            # 🚫 UNKNOWN TOOL
+            # ======================
             return {
                 "jsonrpc": "2.0",
                 "id": body.get("id"),
                 "error": {"code": -32601, "message": f"Unknown tool: {tool_name}"},
             }
 
+        # ===========================
+        # 🚫 INVALID METHOD
+        # ===========================
         else:
             return {"jsonrpc": "2.0", "id": body.get("id"), "error": {"code": -32600, "message": "Invalid method"}}
 
