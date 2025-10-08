@@ -306,79 +306,22 @@ class GraphitiEmbedderConfig(BaseModel):
         azure_openai_use_managed_identity = (
             os.environ.get('AZURE_OPENAI_USE_MANAGED_IDENTITY', 'false').lower() == 'true'
         )
-        if azure_openai_endpoint is not None:
-            # Setup for Azure OpenAI API
-            # Log if empty deployment name was provided
-            azure_openai_deployment_name = os.environ.get(
-                'AZURE_OPENAI_EMBEDDING_DEPLOYMENT_NAME', None
-            )
-            if azure_openai_deployment_name is None:
-                logger.error('AZURE_OPENAI_EMBEDDING_DEPLOYMENT_NAME environment variable not set')
+        # Always use OpenAI for embeddings (Azure disabled)
+        return cls(
+            model=model,
+            api_key=os.environ.get('OPENAI_API_KEY'),
+        )
 
-                raise ValueError(
-                    'AZURE_OPENAI_EMBEDDING_DEPLOYMENT_NAME environment variable not set'
-                )
-
-            if not azure_openai_use_managed_identity:
-                # api key
-                api_key = os.environ.get('AZURE_OPENAI_EMBEDDING_API_KEY', None) or os.environ.get(
-                    'OPENAI_API_KEY', None
-                )
-            else:
-                # Managed identity
-                api_key = None
-
-            return cls(
-                azure_openai_use_managed_identity=azure_openai_use_managed_identity,
-                azure_openai_endpoint=azure_openai_endpoint,
-                api_key=api_key,
-                azure_openai_api_version=azure_openai_api_version,
-                azure_openai_deployment_name=azure_openai_deployment_name,
-            )
-        else:
-            return cls(
-                model=model,
-                api_key=os.environ.get('OPENAI_API_KEY'),
-            )
 
     def create_client(self) -> EmbedderClient | None:
-        if self.azure_openai_endpoint is not None:
-            # Azure OpenAI API setup
-            if self.azure_openai_use_managed_identity:
-                # Use managed identity for authentication
-                token_provider = create_azure_credential_token_provider()
-                return AzureOpenAIEmbedderClient(
-                    azure_client=AsyncAzureOpenAI(
-                        azure_endpoint=self.azure_openai_endpoint,
-                        azure_deployment=self.azure_openai_deployment_name,
-                        api_version=self.azure_openai_api_version,
-                        azure_ad_token_provider=token_provider,
-                    ),
-                    model=self.model,
-                )
-            elif self.api_key:
-                # Use API key for authentication
-                return AzureOpenAIEmbedderClient(
-                    azure_client=AsyncAzureOpenAI(
-                        azure_endpoint=self.azure_openai_endpoint,
-                        azure_deployment=self.azure_openai_deployment_name,
-                        api_version=self.azure_openai_api_version,
-                        api_key=self.api_key,
-                    ),
-                    model=self.model,
-                )
-            else:
-                logger.error('OPENAI_API_KEY must be set when using Azure OpenAI API')
-                return None
-        else:
-            # OpenAI API setup
-            if not self.api_key:
-                return None
+    """Create an embedder client using OpenAI only (Azure disabled)."""
+    if not self.api_key:
+        logger.error('OPENAI_API_KEY must be set to create an embedder client')
+        return None
 
-            embedder_config = OpenAIEmbedderConfig(api_key=self.api_key, embedding_model=self.model)
-
-            return OpenAIEmbedder(config=embedder_config)
-
+    embedder_config = OpenAIEmbedderConfig(api_key=self.api_key, embedding_model=self.model)
+    return OpenAIEmbedder(config=embedder_config)
+       
 
 class Neo4jConfig(BaseModel):
     """Configuration for Neo4j database connection."""
@@ -1186,6 +1129,7 @@ def main():
         logger.error(f'Error initializing Graphiti MCP server: {str(e)}')
         raise
 
+print("🚀 Graphiti MCP (OpenAI-only build) started successfully.")
 
 if __name__ == '__main__':
     main()
