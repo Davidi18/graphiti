@@ -30,8 +30,6 @@ from graphiti_core.search.search_config_recipes import (
 )
 from graphiti_core.search.search_filters import SearchFilters
 from graphiti_core.utils.maintenance.graph_data_operations import clear_data
-from azure.identity import DefaultAzureCredential
-from azure.core.credentials import get_bearer_token_provider
 from fastmcp import FastMCP
 import uvicorn
 
@@ -600,12 +598,13 @@ class StatusResponse(TypedDict):
     message: str
 
 
-def create_azure_credential_token_provider() -> Callable[[], str]:
-    credential = DefaultAzureCredential()
-    token_provider = get_bearer_token_provider(
-        credential, 'https://cognitiveservices.azure.com/.default'
-    )
-    return token_provider
+# Azure credentials removed - not used in this implementation
+# def create_azure_credential_token_provider() -> Callable[[], str]:
+#     credential = DefaultAzureCredential()
+#     token_provider = get_bearer_token_provider(
+#         credential, 'https://cognitiveservices.azure.com/.default'
+#     )
+#     return token_provider
 
 
 # Server configuration classes
