@@ -1184,3 +1184,6 @@ def main():
 
 
 print("🚀 Graphiti MCP (OpenAI-only build) started successfully.")
+
+if __name__ == "__main__":
+    main()
