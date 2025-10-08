@@ -9,6 +9,7 @@ import os
 from fastapi import FastAPI, Request
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
+from neo4j import GraphDatabase
 from graphiti_core import Graphiti
 
 # -------------------------------------------------------
@@ -22,7 +23,7 @@ DEFAULT_EMBEDDER_MODEL = "text-embedding-3-small"
 SEMAPHORE_LIMIT = int(os.getenv("SEMAPHORE_LIMIT", 10))
 
 # -------------------------------------------------------
-# ✅ Core setup
+# ✅ Core setup (Neo4j + Graphiti)
 # -------------------------------------------------------
 
 graphiti = Graphiti(
@@ -31,10 +32,23 @@ graphiti = Graphiti(
     password=os.getenv("NEO4J_PASSWORD", "demodemo"),
 )
 
+# הוספת driver סינכרוני זמני כדי לעקוף בעיות AsyncSession
+graphiti.driver = GraphDatabase.driver(
+    os.getenv("NEO4J_URI", "bolt://neo4j:7687"),
+    auth=(
+        os.getenv("NEO4J_USER", "neo4j"),
+        os.getenv("NEO4J_PASSWORD", "demodemo"),
+    )
+)
+
+# -------------------------------------------------------
+# ✅ FastAPI setup
+# -------------------------------------------------------
+
 app = FastAPI(title="Graphiti MCP")
 
 print("🚀 Graphiti MCP (OpenAI-only build) started successfully.")
-print("✅ FastAPI app initialized with Neo4j connection.")
+print("✅ FastAPI app initialized with Neo4j connection (sync driver).")
 
 # -------------------------------------------------------
 # ✅ Health endpoints
