@@ -1129,18 +1129,17 @@ async def run_mcp_server():
     # Initialize the server
     mcp_config = await initialize_server()
 
-    # Run the server with stdio transport for MCP in the same event loop
     logger.info(f'Starting MCP server with transport: {mcp_config.transport}')
 
+    # Run stdio transport if configured
     if mcp_config.transport == 'stdio':
         await mcp.run_stdio_async()
 
     elif mcp_config.transport == 'sse':
         logger.info(
-            f'Running MCP server with SSE transport on {mcp.settings.host}:{mcp.settings.port}'
+            f'Running MCP server with SSE and HTTP endpoints on {mcp.settings.host}:{mcp.settings.port}'
         )
 
-        # Create FastAPI app
         app = FastAPI()
 
         # Health check
@@ -1148,25 +1147,25 @@ async def run_mcp_server():
         async def health():
             return {"status": "ok", "mode": "Graphiti MCP"}
 
-        # JSON-RPC endpoint for MCP
+        # Main MCP endpoint (JSON-RPC)
         @app.post("/mcp")
         async def handle_mcp(request: Request):
             try:
                 payload = await request.json()
-                response = await mcp.handle_request(payload)
-                if response is None:
-                    return JSONResponse({"error": "No response generated"}, status_code=500)
+                response = await mcp.dispatch(payload)
                 return JSONResponse(response)
             except Exception as e:
-                logger.error(f"MCP handler error: {str(e)}")
+                logger.error(f"MCP /mcp handler error: {str(e)}")
                 return JSONResponse({"error": str(e)}, status_code=500)
 
-        # SSE (existing behavior)
+        # Run both servers in parallel (SSE + HTTP)
+        async def start_sse():
+            await mcp.run_sse_async()
+
         import asyncio
         loop = asyncio.get_event_loop()
-        loop.create_task(mcp.run_sse_async())
+        loop.create_task(start_sse())
 
-        # Run combined server
         config = uvicorn.Config(
             app,
             host=mcp.settings.host or "0.0.0.0",
@@ -1175,19 +1174,3 @@ async def run_mcp_server():
         )
         server = uvicorn.Server(config)
         await server.serve()
-
-
-def main():
-    """Main function to run the Graphiti MCP server."""
-    try:
-        # Run everything in a single event loop
-        asyncio.run(run_mcp_server())
-    except Exception as e:
-        logger.error(f'Error initializing Graphiti MCP server: {str(e)}')
-        raise
-
-
-print("🚀 Graphiti MCP (OpenAI-only build) started successfully.")
-
-if __name__ == '__main__':
-    main()
