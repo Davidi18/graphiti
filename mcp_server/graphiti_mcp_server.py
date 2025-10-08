@@ -18,142 +18,144 @@ from graphiti_core import Graphiti
 
 load_dotenv()
 
-DEFAULT_LLM_MODEL = "gpt-4.1-mini"
-DEFAULT_EMBEDDER_MODEL = "text-embedding-3-small"
-SEMAPHORE_LIMIT = int(os.getenv("SEMAPHORE_LIMIT", 10))
+DEFAULT_LLM_MODEL = 'gpt-4.1-mini'
+DEFAULT_EMBEDDER_MODEL = 'text-embedding-3-small'
+SEMAPHORE_LIMIT = int(os.getenv('SEMAPHORE_LIMIT', 10))
 
 # -------------------------------------------------------
 # ✅ Core setup (Neo4j + Graphiti)
 # -------------------------------------------------------
 
 graphiti = Graphiti(
-    uri=os.getenv("NEO4J_URI", "bolt://neo4j:7687"),
-    user=os.getenv("NEO4J_USER", "neo4j"),
-    password=os.getenv("NEO4J_PASSWORD", "demodemo"),
+    uri=os.getenv('NEO4J_URI', 'bolt://neo4j:7687'),
+    user=os.getenv('NEO4J_USER', 'neo4j'),
+    password=os.getenv('NEO4J_PASSWORD', 'demodemo'),
 )
 
 # הוספת driver סינכרוני זמני כדי לעקוף בעיות AsyncSession
 graphiti.driver = GraphDatabase.driver(
-    os.getenv("NEO4J_URI", "bolt://neo4j:7687"),
+    os.getenv('NEO4J_URI', 'bolt://neo4j:7687'),
     auth=(
-        os.getenv("NEO4J_USER", "neo4j"),
-        os.getenv("NEO4J_PASSWORD", "demodemo"),
-    )
+        os.getenv('NEO4J_USER', 'neo4j'),
+        os.getenv('NEO4J_PASSWORD', 'demodemo'),
+    ),
 )
 
 # -------------------------------------------------------
 # ✅ FastAPI setup
 # -------------------------------------------------------
 
-app = FastAPI(title="Graphiti MCP")
+app = FastAPI(title='Graphiti MCP')
 
-print("🚀 Graphiti MCP (OpenAI-only build) started successfully.")
-print("✅ FastAPI app initialized with Neo4j connection (sync driver).")
+print('🚀 Graphiti MCP (OpenAI-only build) started successfully.')
+print('✅ FastAPI app initialized with Neo4j connection (sync driver).')
 
 # -------------------------------------------------------
 # ✅ Health endpoints
 # -------------------------------------------------------
 
-@app.get("/healthz")
-def healthz():
-    return {"status": "ok"}
 
-@app.get("/status")
+@app.get('/healthz')
+def healthz():
+    return {'status': 'ok'}
+
+
+@app.get('/status')
 def status():
     try:
         graphiti.driver.verify_connectivity()
-        return {"status": "ok", "neo4j": "connected"}
+        return {'status': 'ok', 'neo4j': 'connected'}
     except Exception as e:
-        return {"status": "error", "neo4j": str(e)}
+        return {'status': 'error', 'neo4j': str(e)}
+
 
 # -------------------------------------------------------
 # ✅ Manual MCP handler
 # -------------------------------------------------------
 
-@app.post("/mcp")
+
+@app.post('/mcp')
 async def mcp_endpoint(request: Request):
     """Main MCP endpoint for Graphiti operations."""
     try:
         body = await request.json()
-        method = body.get("method")
+        method = body.get('method')
 
         # ===========================
         # 🔹 TOOLS LIST
         # ===========================
-        if method == "tools/list":
+        if method == 'tools/list':
             return {
-                "jsonrpc": "2.0",
-                "id": body.get("id"),
-                "result": {
-                    "tools": [
+                'jsonrpc': '2.0',
+                'id': body.get('id'),
+                'result': {
+                    'tools': [
                         # --- Basic Tools ---
                         {
-                            "name": "graph_summary",
-                            "description": "Summarize the current knowledge graph",
+                            'name': 'graph_summary',
+                            'description': 'Summarize the current knowledge graph',
                         },
                         {
-                            "name": "graph_list_nodes",
-                            "description": "List nodes in the graph",
+                            'name': 'graph_list_nodes',
+                            'description': 'List nodes in the graph',
                         },
                         {
-                            "name": "graph_list_relations",
-                            "description": "List relationships in the graph",
+                            'name': 'graph_list_relations',
+                            'description': 'List relationships in the graph',
                         },
                         {
-                            "name": "graph_add_node",
-                            "description": "Add a new node to the graph",
+                            'name': 'graph_add_node',
+                            'description': 'Add a new node to the graph',
                         },
                         {
-                            "name": "graph_add_relation",
-                            "description": "Create a relationship between two nodes",
+                            'name': 'graph_add_relation',
+                            'description': 'Create a relationship between two nodes',
                         },
                         {
-                            "name": "graph_clear_data",
-                            "description": "Delete all nodes and relationships",
+                            'name': 'graph_clear_data',
+                            'description': 'Delete all nodes and relationships',
                         },
-
                         # --- Analytical Tools ---
                         {
-                            "name": "graph_find_connections",
-                            "description": "Find paths or connections between entities",
+                            'name': 'graph_find_connections',
+                            'description': 'Find paths or connections between entities',
                         },
                         {
-                            "name": "graph_search_entities",
-                            "description": "Search entities by name or property",
+                            'name': 'graph_search_entities',
+                            'description': 'Search entities by name or property',
                         },
                         {
-                            "name": "graph_analyze_cluster",
-                            "description": "Analyze node clusters based on relationships",
+                            'name': 'graph_analyze_cluster',
+                            'description': 'Analyze node clusters based on relationships',
                         },
                         {
-                            "name": "graph_extract_entities",
-                            "description": "Extract entities from a given text",
+                            'name': 'graph_extract_entities',
+                            'description': 'Extract entities from a given text',
                         },
                         {
-                            "name": "graph_healthcheck",
-                            "description": "Check the health of Neo4j and embeddings",
+                            'name': 'graph_healthcheck',
+                            'description': 'Check the health of Neo4j and embeddings',
                         },
-
                         # --- AI / Semantic Tools ---
                         {
-                            "name": "graph_expand_from_text",
-                            "description": "Generate new entities and links from text using OpenAI",
+                            'name': 'graph_expand_from_text',
+                            'description': 'Generate new entities and links from text using OpenAI',
                         },
                         {
-                            "name": "graph_embed_entities",
-                            "description": "Embed entities for semantic similarity search",
+                            'name': 'graph_embed_entities',
+                            'description': 'Embed entities for semantic similarity search',
                         },
                         {
-                            "name": "graph_query_llm",
-                            "description": "Run natural language queries on the graph",
+                            'name': 'graph_query_llm',
+                            'description': 'Run natural language queries on the graph',
                         },
                         {
-                            "name": "graph_compare_nodes",
-                            "description": "Compare entities semantically",
+                            'name': 'graph_compare_nodes',
+                            'description': 'Compare entities semantically',
                         },
                         {
-                            "name": "graph_autolink",
-                            "description": "Automatically link related entities based on meaning",
+                            'name': 'graph_autolink',
+                            'description': 'Automatically link related entities based on meaning',
                         },
                     ]
                 },
@@ -161,182 +163,206 @@ async def mcp_endpoint(request: Request):
         # ===========================
         # 🔹 TOOLS CALL
         # ===========================
-        elif method == "tools/call":
-            params = body.get("params", {})
-            tool_name = params.get("name")
-            args = params.get("arguments", {})
+        elif method == 'tools/call':
+            params = body.get('params', {})
+            tool_name = params.get('name')
+            args = params.get('arguments', {})
 
             # ======================
             # ✅ READ OPERATIONS
             # ======================
-            if tool_name == "graph_list_nodes":
+            if tool_name == 'graph_list_nodes':
                 try:
                     with graphiti.driver.session() as session:
-                        result = session.run("MATCH (n) RETURN n LIMIT 50")
-                        nodes = [r["n"]._properties for r in result]
+                        result = session.run('MATCH (n) RETURN n LIMIT 50')
+                        nodes = [r['n']._properties for r in result]
                     return {
-                        "jsonrpc": "2.0",
-                        "id": body.get("id"),
-                        "result": {"content": [{"type": "json", "text": nodes}]}
+                        'jsonrpc': '2.0',
+                        'id': body.get('id'),
+                        'result': {'content': [{'type': 'json', 'text': nodes}]},
                     }
                 except Exception as e:
-                    return {"jsonrpc": "2.0", "error": {"code": -32603, "message": str(e)}}
+                    return {'jsonrpc': '2.0', 'error': {'code': -32603, 'message': str(e)}}
 
-            elif tool_name == "graph_list_relations":
+            elif tool_name == 'graph_list_relations':
                 try:
                     with graphiti.driver.session() as session:
-                        result = session.run("MATCH (a)-[r]->(b) RETURN a,b,type(r) AS rel LIMIT 50")
+                        result = session.run(
+                            'MATCH (a)-[r]->(b) RETURN a,b,type(r) AS rel LIMIT 50'
+                        )
                         rels = [
                             {
-                                "from": record["a"]._properties.get("name", ""),
-                                "to": record["b"]._properties.get("name", ""),
-                                "type": record["rel"]
+                                'from': record['a']._properties.get('name', ''),
+                                'to': record['b']._properties.get('name', ''),
+                                'type': record['rel'],
                             }
                             for record in result
                         ]
                     return {
-                        "jsonrpc": "2.0",
-                        "id": body.get("id"),
-                        "result": {"content": [{"type": "json", "text": rels}]}
+                        'jsonrpc': '2.0',
+                        'id': body.get('id'),
+                        'result': {'content': [{'type': 'json', 'text': rels}]},
                     }
                 except Exception as e:
-                    return {"jsonrpc": "2.0", "error": {"code": -32603, "message": str(e)}}
+                    return {'jsonrpc': '2.0', 'error': {'code': -32603, 'message': str(e)}}
 
-            elif tool_name == "graph_summary":
+            elif tool_name == 'graph_summary':
                 try:
                     with graphiti.driver.session() as session:
-                        node_count = session.run("MATCH (n) RETURN count(n) AS count").single()["count"]
-                        rel_count = session.run("MATCH ()-[r]->() RETURN count(r) AS count").single()["count"]
+                        node_count = session.run('MATCH (n) RETURN count(n) AS count').single()[
+                            'count'
+                        ]
+                        rel_count = session.run(
+                            'MATCH ()-[r]->() RETURN count(r) AS count'
+                        ).single()['count']
                     return {
-                        "jsonrpc": "2.0",
-                        "id": body.get("id"),
-                        "result": {
-                            "content": [{
-                                "type": "text",
-                                "text": f"📊 Graph summary:\nNodes: {node_count}\nRelations: {rel_count}"
-                            }]
+                        'jsonrpc': '2.0',
+                        'id': body.get('id'),
+                        'result': {
+                            'content': [
+                                {
+                                    'type': 'text',
+                                    'text': f'📊 Graph summary:\nNodes: {node_count}\nRelations: {rel_count}',
+                                }
+                            ]
                         },
                     }
                 except Exception as e:
-                    return {"jsonrpc": "2.0", "error": {"code": -32603, "message": str(e)}}
+                    return {'jsonrpc': '2.0', 'error': {'code': -32603, 'message': str(e)}}
 
             # ======================
             # 🔍 ANALYTICAL / AI TOOLS
             # ======================
 
-            elif tool_name == "graph_find_connections":
-                args = params.get("arguments", {})
-                start = args.get("start")
-                end = args.get("end")
+            elif tool_name == 'graph_find_connections':
+                args = params.get('arguments', {})
+                start = args.get('start')
+                end = args.get('end')
                 with graphiti.driver.session() as session:
                     query = f"MATCH p=shortestPath((a)-[*..5]-(b)) WHERE a.name='{start}' AND b.name='{end}' RETURN p LIMIT 1"
                     result = session.run(query)
                     paths = [r.data() for r in result]
-                return {"jsonrpc": "2.0", "id": body.get("id"), "result": {"content": [{"type": "json", "text": paths}]}}
+                return {
+                    'jsonrpc': '2.0',
+                    'id': body.get('id'),
+                    'result': {'content': [{'type': 'json', 'text': paths}]},
+                }
 
-            elif tool_name == "graph_search_entities":
-                term = params.get("arguments", {}).get("term", "")
+            elif tool_name == 'graph_search_entities':
+                term = params.get('arguments', {}).get('term', '')
                 with graphiti.driver.session() as session:
                     query = f"MATCH (n) WHERE toLower(n.name) CONTAINS toLower('{term}') RETURN n LIMIT 10"
                     result = session.run(query)
-                    nodes = [r["n"] for r in result]
-                return {"jsonrpc": "2.0", "id": body.get("id"), "result": {"content": [{"type": "json", "text": nodes}]}}
+                    nodes = [r['n'] for r in result]
+                return {
+                    'jsonrpc': '2.0',
+                    'id': body.get('id'),
+                    'result': {'content': [{'type': 'json', 'text': nodes}]},
+                }
 
-            elif tool_name == "graph_analyze_cluster":
+            elif tool_name == 'graph_analyze_cluster':
                 with graphiti.driver.session() as session:
-                    query = "MATCH (n)-[r]->(m) RETURN type(r) as relation, count(*) as count ORDER BY count DESC LIMIT 10"
+                    query = 'MATCH (n)-[r]->(m) RETURN type(r) as relation, count(*) as count ORDER BY count DESC LIMIT 10'
                     data = [r.data() for r in session.run(query)]
-                return {"jsonrpc": "2.0", "id": body.get("id"), "result": {"content": [{"type": "json", "text": data}]}}
+                return {
+                    'jsonrpc': '2.0',
+                    'id': body.get('id'),
+                    'result': {'content': [{'type': 'json', 'text': data}]},
+                }
 
-            elif tool_name == "graph_extract_entities":
-                text = params.get("arguments", {}).get("text", "")
-                api_key = os.getenv("OPENAI_API_KEY")
+            elif tool_name == 'graph_extract_entities':
+                text = params.get('arguments', {}).get('text', '')
+                api_key = os.getenv('OPENAI_API_KEY')
                 if not api_key:
                     return {
-                        "jsonrpc": "2.0",
-                        "error": {
-                            "code": -32603,
-                            "message": "AI features disabled (missing GRAPHITI_OPENAI_API_KEY)",
+                        'jsonrpc': '2.0',
+                        'error': {
+                            'code': -32603,
+                            'message': 'AI features disabled (missing GRAPHITI_OPENAI_API_KEY)',
                         },
                     }
                 from openai import OpenAI
 
                 client = OpenAI(api_key=api_key)
                 response = client.chat.completions.create(
-                    model="gpt-4o-mini",
+                    model='gpt-4o-mini',
                     messages=[
                         {
-                            "role": "system",
-                            "content": "Extract entities (Person, Company, Location, Project) from text",
+                            'role': 'system',
+                            'content': 'Extract entities (Person, Company, Location, Project) from text',
                         },
-                        {"role": "user", "content": text},
+                        {'role': 'user', 'content': text},
                     ],
                 )
                 extracted_text = (
-                    response.choices[0]
-                    .message.content.strip("`")
-                    .replace("json", "")
-                    .strip()
+                    response.choices[0].message.content.strip('`').replace('json', '').strip()
                 )
                 return {
-                    "jsonrpc": "2.0",
-                    "id": body.get("id"),
-                    "result": {
-                        "content": [
+                    'jsonrpc': '2.0',
+                    'id': body.get('id'),
+                    'result': {
+                        'content': [
                             {
-                                "type": "text",
-                                "text": extracted_text,
+                                'type': 'text',
+                                'text': extracted_text,
                             }
                         ]
                     },
                 }
-            elif tool_name == "graph_healthcheck":
+            elif tool_name == 'graph_healthcheck':
                 try:
                     graphiti.driver.verify_connectivity()
-                    status = "connected"
+                    status = 'connected'
                 except Exception as e:
-                    status = f"error: {e}"
+                    status = f'error: {e}'
                 return {
-                    "jsonrpc": "2.0",
-                    "id": body.get("id"),
-                    "result": {"content": [{"type": "text", "text": f"Neo4j status: {status}"}]},
+                    'jsonrpc': '2.0',
+                    'id': body.get('id'),
+                    'result': {'content': [{'type': 'text', 'text': f'Neo4j status: {status}'}]},
                 }
 
-            elif tool_name == "graph_expand_from_text":
-                api_key = os.getenv("OPENAI_API_KEY")
+            elif tool_name == 'graph_expand_from_text':
+                api_key = os.getenv('OPENAI_API_KEY')
                 if not api_key:
                     return {
-                        "jsonrpc": "2.0",
-                        "error": {"code": -32603, "message": "AI features disabled (missing OPENAI_API_KEY)"},
+                        'jsonrpc': '2.0',
+                        'error': {
+                            'code': -32603,
+                            'message': 'AI features disabled (missing OPENAI_API_KEY)',
+                        },
                     }
 
                 from openai import OpenAI
+
                 client = OpenAI(api_key=api_key)
-                text = params.get("arguments", {}).get("text", "")
-                auto_write = params.get("arguments", {}).get("autoWrite", False)
+                text = params.get('arguments', {}).get('text', '')
+                auto_write = params.get('arguments', {}).get('autoWrite', False)
 
                 try:
                     # 🔹 Step 1: Run GPT to extract entities and relations
                     response = client.chat.completions.create(
-                        model="gpt-4o-mini",
+                        model='gpt-4o-mini',
                         messages=[
                             {
-                                "role": "system",
-                                "content": (
-                                    "Extract entities and relations from text in pure JSON format. "
+                                'role': 'system',
+                                'content': (
+                                    'Extract entities and relations from text in pure JSON format. '
                                     "The JSON must include two arrays: 'entities' and 'relations'. "
-                                    "Each entity must have id, name, and type. "
-                                    "Each relation must have source, target, and type."
+                                    'Each entity must have id, name, and type. '
+                                    'Each relation must have source, target, and type.'
                                 ),
                             },
-                            {"role": "user", "content": text},
+                            {'role': 'user', 'content': text},
                         ],
                         temperature=0.3,
                     )
 
-                    raw_output = response.choices[0].message.content.strip("`").replace("json", "").strip()
+                    raw_output = (
+                        response.choices[0].message.content.strip('`').replace('json', '').strip()
+                    )
 
                     import json
+
                     data = json.loads(raw_output)
 
                     # 🔹 Step 2 (optional): Write to Neo4j
@@ -345,124 +371,155 @@ async def mcp_endpoint(request: Request):
                         created_rels = 0
                         with graphiti.driver.session() as session:
                             # create entities
-                            for ent in data.get("entities", []):
+                            for ent in data.get('entities', []):
                                 session.run(
-                                    "MERGE (n:Entity {id:$id}) "
-                                    "SET n.name=$name, n.type=$type",
-                                    {"id": ent.get("id"), "name": ent.get("name"), "type": ent.get("type")},
+                                    'MERGE (n:Entity {id:$id}) SET n.name=$name, n.type=$type',
+                                    {
+                                        'id': ent.get('id'),
+                                        'name': ent.get('name'),
+                                        'type': ent.get('type'),
+                                    },
                                 )
                                 created_nodes += 1
                             # create relations
-                            for rel in data.get("relations", []):
+                            for rel in data.get('relations', []):
                                 session.run(
-                                    "MATCH (a:Entity {id:$src}), (b:Entity {id:$dst}) "
-                                    f"MERGE (a)-[r:{rel.get('type', 'RELATED_TO')}]->(b)",
-                                    {"src": rel.get("source"), "dst": rel.get("target")},
+                                    'MATCH (a:Entity {id:$src}), (b:Entity {id:$dst}) '
+                                    f'MERGE (a)-[r:{rel.get("type", "RELATED_TO")}]->(b)',
+                                    {'src': rel.get('source'), 'dst': rel.get('target')},
                                 )
                                 created_rels += 1
 
-                        summary = f"✅ {created_nodes} nodes and {created_rels} relations created in Neo4j."
+                        summary = f'✅ {created_nodes} nodes and {created_rels} relations created in Neo4j.'
                     else:
-                        summary = "🧩 Extracted entities and relations (not written to Neo4j)."
+                        summary = '🧩 Extracted entities and relations (not written to Neo4j).'
 
                     # 🔹 Step 3: Return both JSON and summary
                     return {
-                        "jsonrpc": "2.0",
-                        "id": body.get("id"),
-                        "result": {
-                            "content": [
-                                {"type": "text", "text": summary},
-                                {"type": "json", "text": json.dumps(data, indent=2, ensure_ascii=False)},
+                        'jsonrpc': '2.0',
+                        'id': body.get('id'),
+                        'result': {
+                            'content': [
+                                {'type': 'text', 'text': summary},
+                                {
+                                    'type': 'json',
+                                    'text': json.dumps(data, indent=2, ensure_ascii=False),
+                                },
                             ]
                         },
                     }
 
                 except Exception as e:
                     return {
-                        "jsonrpc": "2.0",
-                        "error": {"code": -32603, "message": f"Graph expand failed: {str(e)}"},
+                        'jsonrpc': '2.0',
+                        'error': {'code': -32603, 'message': f'Graph expand failed: {str(e)}'},
                     }
 
-            elif tool_name in ["graph_embed_entities", "graph_query_llm", "graph_compare_nodes", "graph_autolink"]:
+            elif tool_name in [
+                'graph_embed_entities',
+                'graph_query_llm',
+                'graph_compare_nodes',
+                'graph_autolink',
+            ]:
                 return {
-                    "jsonrpc": "2.0",
-                    "error": {"code": -32603, "message": f"Tool {tool_name} defined but not yet implemented."},
+                    'jsonrpc': '2.0',
+                    'error': {
+                        'code': -32603,
+                        'message': f'Tool {tool_name} defined but not yet implemented.',
+                    },
                 }
 
             # ======================
             # ✏️ WRITE OPERATIONS
             # ======================
-            elif tool_name == "graph_add_node":
+            elif tool_name == 'graph_add_node':
                 try:
-                    name = args.get("name")
-                    label = args.get("label", "Entity")
-                    props = args.get("properties", {})
+                    name = args.get('name')
+                    label = args.get('label', 'Entity')
+                    props = args.get('properties', {})
                     with graphiti.driver.session() as session:
-                        session.run(f"CREATE (n:{label} $props)", props={"name": name, **props})
+                        session.run(f'CREATE (n:{label} $props)', props={'name': name, **props})
                     return {
-                        "jsonrpc": "2.0",
-                        "id": body.get("id"),
-                        "result": {"content": [{"type": "text", "text": f"✅ Node '{name}' added."}]}
+                        'jsonrpc': '2.0',
+                        'id': body.get('id'),
+                        'result': {
+                            'content': [{'type': 'text', 'text': f"✅ Node '{name}' added."}]
+                        },
                     }
                 except Exception as e:
-                    return {"jsonrpc": "2.0", "error": {"code": -32603, "message": str(e)}}
+                    return {'jsonrpc': '2.0', 'error': {'code': -32603, 'message': str(e)}}
 
-            elif tool_name == "graph_add_relation":
+            elif tool_name == 'graph_add_relation':
                 try:
-                    src = args.get("source")
-                    dst = args.get("target")
-                    rel = args.get("relation", "RELATES_TO")
+                    src = args.get('source')
+                    dst = args.get('target')
+                    rel = args.get('relation', 'RELATES_TO')
                     with graphiti.driver.session() as session:
                         session.run(
-                            f"MATCH (a {{name:$src}}), (b {{name:$dst}}) CREATE (a)-[:{rel}]->(b)",
-                            {"src": src, "dst": dst}
+                            f'MATCH (a {{name:$src}}), (b {{name:$dst}}) CREATE (a)-[:{rel}]->(b)',
+                            {'src': src, 'dst': dst},
                         )
                     return {
-                        "jsonrpc": "2.0",
-                        "id": body.get("id"),
-                        "result": {"content": [{"type": "text", "text": f"✅ Relation {src} -[{rel}]-> {dst} added."}]}
+                        'jsonrpc': '2.0',
+                        'id': body.get('id'),
+                        'result': {
+                            'content': [
+                                {
+                                    'type': 'text',
+                                    'text': f'✅ Relation {src} -[{rel}]-> {dst} added.',
+                                }
+                            ]
+                        },
                     }
                 except Exception as e:
-                    return {"jsonrpc": "2.0", "error": {"code": -32603, "message": str(e)}}
+                    return {'jsonrpc': '2.0', 'error': {'code': -32603, 'message': str(e)}}
 
-            elif tool_name == "graph_clear_data":
+            elif tool_name == 'graph_clear_data':
                 try:
                     with graphiti.driver.session() as session:
-                        session.run("MATCH (n) DETACH DELETE n")
+                        session.run('MATCH (n) DETACH DELETE n')
                     return {
-                        "jsonrpc": "2.0",
-                        "id": body.get("id"),
-                        "result": {"content": [{"type": "text", "text": "🧹 All graph data cleared."}]}
+                        'jsonrpc': '2.0',
+                        'id': body.get('id'),
+                        'result': {
+                            'content': [{'type': 'text', 'text': '🧹 All graph data cleared.'}]
+                        },
                     }
                 except Exception as e:
-                    return {"jsonrpc": "2.0", "error": {"code": -32603, "message": str(e)}}
+                    return {'jsonrpc': '2.0', 'error': {'code': -32603, 'message': str(e)}}
 
             # ======================
             # 🚫 UNKNOWN TOOL
             # ======================
             return {
-                "jsonrpc": "2.0",
-                "id": body.get("id"),
-                "error": {"code": -32601, "message": f"Unknown tool: {tool_name}"},
+                'jsonrpc': '2.0',
+                'id': body.get('id'),
+                'error': {'code': -32601, 'message': f'Unknown tool: {tool_name}'},
             }
 
         # ===========================
         # 🚫 INVALID METHOD
         # ===========================
         else:
-            return {"jsonrpc": "2.0", "id": body.get("id"), "error": {"code": -32600, "message": "Invalid method"}}
+            return {
+                'jsonrpc': '2.0',
+                'id': body.get('id'),
+                'error': {'code': -32600, 'message': 'Invalid method'},
+            }
 
     except Exception as e:
-        return {"jsonrpc": "2.0", "error": {"code": -32603, "message": str(e)}}
+        return {'jsonrpc': '2.0', 'error': {'code': -32603, 'message': str(e)}}
 
 
 # -------------------------------------------------------
 # ✅ Run manually if needed
 # -------------------------------------------------------
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8010)
+
+    uvicorn.run(app, host='0.0.0.0', port=8010)
+
 
 class Requirement(BaseModel):
     """A Requirement represents a specific need, feature, or functionality that a product or service must fulfill.
@@ -679,16 +736,15 @@ class GraphitiLLMConfig(BaseModel):
         # Azure disabled – always use OpenAIClient
         if not self.api_key:
             raise ValueError('OPENAI_API_KEY must be set when using OpenAI API')
-        
+
         llm_client_config = LLMConfig(
             api_key=self.api_key, model=self.model, small_model=self.small_model
         )
-        
+
         # Set temperature
         llm_client_config.temperature = self.temperature
-        
-        return OpenAIClient(config=llm_client_config)
 
+        return OpenAIClient(config=llm_client_config)
 
 
 class GraphitiEmbedderConfig(BaseModel):
@@ -726,7 +782,6 @@ class GraphitiEmbedderConfig(BaseModel):
             api_key=os.environ.get('OPENAI_API_KEY'),
         )
 
-
     def create_client(self) -> EmbedderClient | None:
         """Create an embedder client using OpenAI only (Azure disabled)."""
         if not self.api_key:
@@ -735,7 +790,7 @@ class GraphitiEmbedderConfig(BaseModel):
 
         embedder_config = OpenAIEmbedderConfig(api_key=self.api_key, embedding_model=self.model)
         return OpenAIEmbedder(config=embedder_config)
-       
+
 
 class Neo4jConfig(BaseModel):
     """Configuration for Neo4j database connection."""
@@ -1550,47 +1605,50 @@ async def run_mcp_server():
     # אחרת נריץ FastAPI HTTP JSON-RPC server על פורט 8010
     app = FastAPI()
 
-    @app.get("/health")
+    @app.get('/health')
     async def health():
         """Health check endpoint."""
-        return {"status": "ok", "mode": "Graphiti MCP", "transport": "http"}
+        return {'status': 'ok', 'mode': 'Graphiti MCP', 'transport': 'http'}
 
-    @app.post("/mcp")
+    @app.post('/mcp')
     async def handle_mcp(request: Request):
         """Handle JSON-RPC requests from n8n or external services."""
         try:
             payload = await request.json()
-            logger.info(f"📥 MCP request: {payload}")
+            logger.info(f'📥 MCP request: {payload}')
 
             # Verify that FastMCP instance is available
-            if not hasattr(mcp, "dispatch"):
-                return JSONResponse({"error": "MCP instance not ready"}, status_code=503)
+            if not hasattr(mcp, 'dispatch'):
+                return JSONResponse({'error': 'MCP instance not ready'}, status_code=503)
 
             response = await mcp.dispatch(payload)
-            logger.info(f"📤 MCP response: {response}")
+            logger.info(f'📤 MCP response: {response}')
             return JSONResponse(response)
 
         except Exception as e:
-            logger.error(f"❌ MCP /mcp handler error: {str(e)}")
-            return JSONResponse({"error": str(e)}, status_code=500)
+            logger.error(f'❌ MCP /mcp handler error: {str(e)}')
+            return JSONResponse({'error': str(e)}, status_code=500)
 
-    logger.info(f"Running MCP HTTP server on {mcp.settings.host}:{mcp.settings.port}")
+    logger.info(f'Running MCP HTTP server on {mcp.settings.host}:{mcp.settings.port}')
 
-    uvicorn.run(app, host=mcp.settings.host or "0.0.0.0", port=int(mcp.settings.port or 8010))
+    uvicorn.run(app, host=mcp.settings.host or '0.0.0.0', port=int(mcp.settings.port or 8010))
 
 
 def run_mcp_server_sync():
     """Run the MCP server (sync version)."""
     import uvicorn
+
     try:
-        uvicorn.run(app, host="0.0.0.0", port=8010)
+        uvicorn.run(app, host='0.0.0.0', port=8010)
     except Exception as e:
-        logger.error(f"Error initializing Graphiti MCP server: {str(e)}")
+        logger.error(f'Error initializing Graphiti MCP server: {str(e)}')
         raise
+
 
 def main():
     """Main function to run the Graphiti MCP server."""
     import asyncio
+
     try:
         try:
             loop = asyncio.get_running_loop()
@@ -1599,15 +1657,16 @@ def main():
 
         if loop and loop.is_running():
             import threading
+
             threading.Thread(target=run_mcp_server_sync, daemon=True).start()
         else:
             run_mcp_server_sync()
     except Exception as e:
-        logger.error(f"Error initializing Graphiti MCP server: {str(e)}")
+        logger.error(f'Error initializing Graphiti MCP server: {str(e)}')
         raise
 
 
-print("🚀 Graphiti MCP (OpenAI-only build) started successfully.")
+print('🚀 Graphiti MCP (OpenAI-only build) started successfully.')
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
