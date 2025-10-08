@@ -212,7 +212,8 @@ async def mcp_endpoint(request: Request):
                               {"role": "user", "content": text}]
                 )
                 return {"jsonrpc": "2.0", "id": body.get("id"),
-                        "result": {"content": [{"type": "text", "text": response.choices[0].message.content}]}}
+                        "result": {"content": [{"type": "text", "text": response.choices[0].message.content.strip("`").replace("json", "").strip()
+}]}}
 
             elif tool_name == "graph_healthcheck":
                 try:
@@ -238,7 +239,8 @@ async def mcp_endpoint(request: Request):
                     ]
                 )
                 return {"jsonrpc": "2.0", "id": body.get("id"),
-                        "result": {"content": [{"type": "text", "text": response.choices[0].message.content}]}}
+                        "result": {"content": [{"type": "text", "text": response.choices[0].message.content.strip("`").replace("json", "").strip()
+}]}}
 
             elif tool_name in ["graph_embed_entities", "graph_query_llm", "graph_compare_nodes", "graph_autolink"]:
                 return {"jsonrpc": "2.0", "error": {"code": -32603, "message": f"Tool {tool_name} defined but not yet implemented."}}
