@@ -84,4 +84,4 @@ ENV PORT=8010
 EXPOSE $PORT
 
 # 🔹 Modified CMD to run the FastMCP server instead of graph_service
-CMD ["python", "-c", "from mcp.server.fastmcp.server import FastMCP; s=FastMCP(); s.settings.host='0.0.0.0'; s.settings.port=8010; s.run(transport='streamable-http')"]
+CMD ["python", "-u", "-c", "from mcp.server.fastmcp.server import FastMCP; server = FastMCP(); server.settings.host='0.0.0.0'; server.settings.port=8010; server.run(transport='streamable-http')"]
