@@ -12,6 +12,8 @@ services:
     volumes:
       - neo4j_data:/data
       - neo4j_logs:/logs
+    networks:
+      - coolify
     healthcheck:
       test: ["CMD", "wget", "-O", "/dev/null", "http://localhost:7474"]
       interval: 10s
@@ -41,7 +43,33 @@ services:
     ports:
       - "8000:8000" # Expose the MCP server via HTTP for SSE transport
     command: ["uv", "run", "graphiti_mcp_server.py", "--transport", "sse"]
+    networks:
+      coolify:
+        aliases:
+          - coolify.strudel.marketing
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.graphiti-mcp-http.rule=Host(`graphiti-mcp.strudel.marketing`)
+      - traefik.http.routers.graphiti-mcp-http.entrypoints=http
+      - traefik.http.routers.graphiti-mcp-http.middlewares=redirect-to-https
+      - traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https
+      - traefik.http.routers.graphiti-mcp-https.rule=Host(`graphiti-mcp.strudel.marketing`)
+      - traefik.http.routers.graphiti-mcp-https.entrypoints=https
+      - traefik.http.routers.graphiti-mcp-https.tls=true
+      - traefik.http.services.graphiti-mcp-service.loadbalancer.server.port=8000
+      - traefik.http.routers.graphiti-mcp-https.tls.certresolver=letsencrypt
+      - coolify.managed=true
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
 
 volumes:
   neo4j_data:
   neo4j_logs:
+
+networks:
+  coolify:
+    external: true
