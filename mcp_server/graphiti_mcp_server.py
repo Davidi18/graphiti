@@ -39,31 +39,36 @@ from graphiti_core.search.search_config_recipes import (
 from graphiti_core.search.search_filters import SearchFilters
 from graphiti_core.utils.maintenance.graph_data_operations import clear_data
 
-# Load environment variables
+# -------------------------------------------------------
+# ✅ Environment & global config
+# -------------------------------------------------------
+
 load_dotenv()
 
+DEFAULT_LLM_MODEL = 'gpt-4.1-mini'
+SMALL_LLM_MODEL = 'gpt-4.1-nano'
+DEFAULT_EMBEDDER_MODEL = 'text-embedding-3-small'
+SEMAPHORE_LIMIT = int(os.getenv('SEMAPHORE_LIMIT', 10))
+
 # -------------------------------------------------------
-# ✅ FastAPI + MCP integration setup
+# ✅ FastAPI + MCP + Graphiti initialization
 # -------------------------------------------------------
 
-app = FastAPI(title="Graphiti MCP")
-
-# יצירת מופעי Graphiti ו־FastMCP
-mcp = FastMCP()
+# יצירת מופע Graphiti שמחובר ל־Neo4j
 graphiti = Graphiti(
     uri=os.getenv("NEO4J_URI", "bolt://neo4j:7687"),
     user=os.getenv("NEO4J_USER", "neo4j"),
     password=os.getenv("NEO4J_PASSWORD", "demodemo")
 )
 
-# רישום הנתיבים של MCP לתוך FastAPI
-mcp.register_routes(app)
-print("✅ MCP routes registered on FastAPI app")
+# יצירת MCP (כולל FastAPI פנימי)
+mcp = FastMCP()
+app: FastAPI = mcp.app  # שימוש ב־FastAPI מתוך MCP
 
 @app.on_event("startup")
-def startup_event():
+async def startup_event():
     try:
-        mcp.initialize()  # רישום הכלים ב־/mcp
+        await mcp.initialize()
         print("✅ MCP initialized successfully")
     except Exception as e:
         print(f"⚠️ MCP init error: {e}")
@@ -72,15 +77,17 @@ def startup_event():
 def healthz():
     return {"status": "ok"}
 
-# -------------------------------------------------------
-# Default configs
-# -------------------------------------------------------
+@app.get("/status")
+def status():
+    """בדיקה פשוטה לוודא ש־Graphiti ו־Neo4j זמינים"""
+    try:
+        graphiti.driver.verify_connectivity()
+        return {"status": "ok", "neo4j": "connected"}
+    except Exception as e:
+        return {"status": "error", "neo4j": str(e)}
 
-DEFAULT_LLM_MODEL = 'gpt-4.1-mini'
-SMALL_LLM_MODEL = 'gpt-4.1-nano'
-DEFAULT_EMBEDDER_MODEL = 'text-embedding-3-small'
-
-SEMAPHORE_LIMIT = int(os.getenv('SEMAPHORE_LIMIT', 10))
+print("🚀 Graphiti MCP (OpenAI-only build) started successfully.")
+print("✅ FastAPI app and MCP initialized with Neo4j connection.")
 
 class Requirement(BaseModel):
     """A Requirement represents a specific need, feature, or functionality that a product or service must fulfill.
