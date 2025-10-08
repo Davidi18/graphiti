@@ -225,21 +225,87 @@ async def mcp_endpoint(request: Request):
                         "result": {"content": [{"type": "text", "text": f"Neo4j status: {status}"}]}}
 
             elif tool_name == "graph_expand_from_text":
-                api_key = os.getenv("OPENAI_API_KEY")
-                if not api_key:
-                    return {"jsonrpc": "2.0", "error": {"code": -32603, "message": "AI features disabled (missing GRAPHITI_OPENAI_API_KEY)"}}
-                from openai import OpenAI
-                client = OpenAI(api_key=api_key)
-                text = params.get("arguments", {}).get("text", "")
-                response = client.chat.completions.create(
-                    model="gpt-4o-mini",
-                    messages=[
-                        {"role": "system", "content": "Generate structured knowledge graph entities and relations from text."},
-                        {"role": "user", "content": text},
-                    ]
-                )
-                return {"jsonrpc": "2.0", "id": body.get("id"),
-                        "result": {"content": [{"type": "text", "text": response.choices[0].message.content.strip("`").replace("json", "").strip()
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        return {
+            "jsonrpc": "2.0",
+            "error": {"code": -32603, "message": "AI features disabled (missing OPENAI_API_KEY)"}
+        }
+
+    from openai import OpenAI
+    client = OpenAI(api_key=api_key)
+    text = params.get("arguments", {}).get("text", "")
+    auto_write = params.get("arguments", {}).get("autoWrite", False)
+
+    try:
+        # 🔹 Step 1: Run GPT to extract entities and relations
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "Extract entities and relations from text in pure JSON format. "
+                        "The JSON must include two arrays: 'entities' and 'relations'. "
+                        "Each entity must have id, name, and type. "
+                        "Each relation must have source, target, and type."
+                    ),
+                },
+                {"role": "user", "content": text},
+            ],
+            temperature=0.3,
+        )
+
+        raw_output = response.choices[0].message.content.strip("`").replace("json", "").strip()
+
+        import json
+        data = json.loads(raw_output)
+
+        # 🔹 Step 2 (optional): Write to Neo4j
+        if auto_write:
+            created_nodes = 0
+            created_rels = 0
+            with graphiti.driver.session() as session:
+                # create entities
+                for ent in data.get("entities", []):
+                    session.run(
+                        "MERGE (n:Entity {id:$id}) "
+                        "SET n.name=$name, n.type=$type",
+                        {"id": ent.get("id"), "name": ent.get("name"), "type": ent.get("type")},
+                    )
+                    created_nodes += 1
+                # create relations
+                for rel in data.get("relations", []):
+                    session.run(
+                        "MATCH (a:Entity {id:$src}), (b:Entity {id:$dst}) "
+                        f"MERGE (a)-[r:{rel.get('type', 'RELATED_TO')}]->(b)",
+                        {"src": rel.get("source"), "dst": rel.get("target")},
+                    )
+                    created_rels += 1
+
+            summary = (
+                f"✅ {created_nodes} nodes and {created_rels} relations created in Neo4j."
+            )
+        else:
+            summary = "🧩 Extracted entities and relations (not written to Neo4j)."
+
+        # 🔹 Step 3: Return both JSON and summary
+        return {
+            "jsonrpc": "2.0",
+            "id": body.get("id"),
+            "result": {
+                "content": [
+                    {"type": "text", "text": summary},
+                    {"type": "json", "text": json.dumps(data, indent=2, ensure_ascii=False)},
+                ]
+            },
+        }
+
+    except Exception as e:
+        return {
+            "jsonrpc": "2.0",
+            "error": {"code": -32603, "message": f"Graph expand failed: {str(e)}"},
+        }
 }]}}
 
             elif tool_name in ["graph_embed_entities", "graph_query_llm", "graph_compare_nodes", "graph_autolink"]:
