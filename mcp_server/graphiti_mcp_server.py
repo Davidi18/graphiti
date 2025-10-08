@@ -1165,6 +1165,12 @@ async def run_mcp_server():
     uvicorn.run(app, host=mcp.settings.host or "0.0.0.0", port=int(mcp.settings.port or 8010))
 
 
+def run_mcp_server_sync():
+    """Run the MCP server (non-async version)."""
+    import uvicorn
+    uvicorn.run(app, host=mcp.settings.host or "0.0.0.0", port=int(mcp.settings.port or 8010))
+
+
 def main():
     """Main function to run the Graphiti MCP server."""
     import asyncio
@@ -1175,11 +1181,10 @@ def main():
             loop = None
 
         if loop and loop.is_running():
-            # Avoid nested event loops
             import threading
-            threading.Thread(target=lambda: asyncio.run(run_mcp_server()), daemon=True).start()
+            threading.Thread(target=run_mcp_server_sync, daemon=True).start()
         else:
-            asyncio.run(run_mcp_server())
+            run_mcp_server_sync()
     except Exception as e:
         logger.error(f"Error initializing Graphiti MCP server: {str(e)}")
         raise
