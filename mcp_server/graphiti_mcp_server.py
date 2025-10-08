@@ -1168,22 +1168,19 @@ async def run_mcp_server():
 def main():
     """Main function to run the Graphiti MCP server."""
     import asyncio
-
     try:
-        # אם כבר יש event loop פעיל (כמו כשמריצים מתוך uvicorn או Coolify)
-        loop = None
         try:
             loop = asyncio.get_running_loop()
         except RuntimeError:
-            pass
+            loop = None
 
         if loop and loop.is_running():
-            # תריץ את הפונקציה ישירות בתוך הלולאה הקיימת
             asyncio.create_task(run_mcp_server())
         else:
-            # אחרת תריץ לולאה חדשה
             asyncio.run(run_mcp_server())
-
     except Exception as e:
-        logger.error(f'Error initializing Graphiti MCP server: {str(e)}')
+        logger.error(f"Error initializing Graphiti MCP server: {str(e)}")
         raise
+
+
+print("🚀 Graphiti MCP (OpenAI-only build) started successfully.")
