@@ -205,8 +205,8 @@ async def mcp_endpoint(request: Request):
         # ✅ Log all requests for debugging
         print(f"📨 MCP Request: method={method}, id={body.get('id')}")
 
-        # ✅ Authentication: allow tools/list without auth, require Bearer for others
-        if method != "tools/list":
+        # ✅ Authentication: allow initialize and tools/list without auth, require Bearer for others
+        if method not in ["initialize", "tools/list"]:
             auth_header = request.headers.get("Authorization", "")
             token = os.getenv("GRAPHITI_MCP_TOKEN", "")
 
@@ -237,9 +237,30 @@ async def mcp_endpoint(request: Request):
                 )
 
         # ===========================
+        # 🔹 INITIALIZE
+        # ===========================
+        if method == "initialize":
+            return {
+                "jsonrpc": "2.0",
+                "id": body.get("id"),
+                "result": {
+                    "protocolVersion": "2024-11-05",
+                    "capabilities": {
+                        "tools": {},
+                        "resources": {},
+                        "prompts": {}
+                    },
+                    "serverInfo": {
+                        "name": "Graphiti MCP Server",
+                        "version": "1.0.0"
+                    }
+                }
+            }
+        
+        # ===========================
         # 🔹 TOOLS LIST
         # ===========================
-        if method == "tools/list":
+        elif method == "tools/list":
             return {
                 "jsonrpc": "2.0",
                 "id": body.get("id"),
