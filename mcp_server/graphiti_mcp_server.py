@@ -1075,6 +1075,14 @@ async def initialize_server() -> MCPConfig:
         help='Host to bind the MCP server to (default: MCP_SERVER_HOST environment variable)',
     )
 
+    # ✅ הוספת תמיכה בארגומנט פורט
+    parser.add_argument(
+        '--port',
+        type=int,
+        default=8000,
+        help='Port to run the MCP server on (default: 8000)',
+    )
+
     args = parser.parse_args()
 
     # Build configuration from CLI arguments and environment variables
@@ -1099,6 +1107,11 @@ async def initialize_server() -> MCPConfig:
         logger.info(f'Setting MCP server host to: {args.host}')
         # Set MCP server host from CLI or env
         mcp.settings.host = args.host
+
+    # ✅ הגדרה נוספת – תמיכה בפורט
+    if args.port:
+        logger.info(f'Setting MCP server port to: {args.port}')
+        mcp.settings.port = args.port
 
     # Return MCP configuration
     return MCPConfig.from_cli(args)
@@ -1128,6 +1141,7 @@ def main():
     except Exception as e:
         logger.error(f'Error initializing Graphiti MCP server: {str(e)}')
         raise
+
 
 print("🚀 Graphiti MCP (OpenAI-only build) started successfully.")
 
