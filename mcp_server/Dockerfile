@@ -31,7 +31,7 @@ RUN groupadd -r app && useradd -r -d /app -g app app
 COPY pyproject.toml uv.lock ./
 
 # Install dotenv + MCP SDK (fastmcp)
-RUN pip install python-dotenv git+https://github.com/modelcontextprotocol/python-sdk.git
+RUN pip install python-dotenv openai git+https://github.com/modelcontextprotocol/python-sdk.git
 
 # Install dependencies first (better layer caching)
 RUN --mount=type=cache,target=/root/.cache/uv \
