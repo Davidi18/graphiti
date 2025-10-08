@@ -4,10 +4,12 @@ Graphiti MCP Server - Exposes Graphiti functionality through the Model Context P
 """
 
 import asyncio
+import json
 import logging
 import os
 import sys
 import argparse
+import threading
 from typing import Any, Callable, TypedDict, cast
 from datetime import datetime, timezone
 from fastapi import FastAPI, Request
@@ -16,7 +18,7 @@ from pydantic import BaseModel, Field
 from dotenv import load_dotenv
 from neo4j import GraphDatabase
 from graphiti_core import Graphiti
-from graphiti_core.nodes import EpisodicNode, EntityNode
+from graphiti_core.nodes import EpisodicNode, EntityNode, EpisodeType
 from graphiti_core.edges import EntityEdge
 from graphiti_core.llm_client import LLMClient, LLMConfig
 from graphiti_core.llm_client.openai_client import OpenAIClient
@@ -28,11 +30,10 @@ from graphiti_core.search.search_config_recipes import (
 )
 from graphiti_core.search.search_filters import SearchFilters
 from graphiti_core.utils.maintenance.graph_data_operations import clear_data
-from graphiti_core.utils import retrieve_episodes
-from graphiti_core.models import EpisodeType
 from azure.identity import DefaultAzureCredential
 from azure.core.credentials import get_bearer_token_provider
 from fastmcp import FastMCP
+import uvicorn
 
 # -------------------------------------------------------
 # ✅ Environment
@@ -341,7 +342,6 @@ async def mcp_endpoint(request: Request):
 
                     raw_output = response.choices[0].message.content.strip("`").replace("json", "").strip()
 
-                    import json
                     data = json.loads(raw_output)
 
                     # 🔹 Step 2 (optional): Write to Neo4j
@@ -1550,9 +1550,6 @@ async def initialize_server() -> MCPConfig:
 
 async def run_mcp_server():
     """Run the MCP server in the current event loop."""
-    from fastapi import FastAPI, Request
-    from fastapi.responses import JSONResponse
-    import uvicorn
 
     # Initialize the server
     mcp_config = await initialize_server()
@@ -1598,7 +1595,6 @@ async def run_mcp_server():
 
 def run_mcp_server_sync():
     """Run the MCP server (sync version)."""
-    import uvicorn
     try:
         uvicorn.run(app, host="0.0.0.0", port=8010)
     except Exception as e:
@@ -1607,7 +1603,6 @@ def run_mcp_server_sync():
 
 def main():
     """Main function to run the Graphiti MCP server."""
-    import asyncio
     try:
         try:
             loop = asyncio.get_running_loop()
@@ -1615,7 +1610,6 @@ def main():
             loop = None
 
         if loop and loop.is_running():
-            import threading
             threading.Thread(target=run_mcp_server_sync, daemon=True).start()
         else:
             run_mcp_server_sync()
