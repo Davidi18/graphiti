@@ -1122,18 +1122,59 @@ async def initialize_server() -> MCPConfig:
 
 async def run_mcp_server():
     """Run the MCP server in the current event loop."""
+    from fastapi import FastAPI, Request
+    from fastapi.responses import JSONResponse
+    import uvicorn
+
     # Initialize the server
     mcp_config = await initialize_server()
 
     # Run the server with stdio transport for MCP in the same event loop
     logger.info(f'Starting MCP server with transport: {mcp_config.transport}')
+
     if mcp_config.transport == 'stdio':
         await mcp.run_stdio_async()
+
     elif mcp_config.transport == 'sse':
         logger.info(
             f'Running MCP server with SSE transport on {mcp.settings.host}:{mcp.settings.port}'
         )
-        await mcp.run_sse_async()
+
+        # Create FastAPI app
+        app = FastAPI()
+
+        # Health check
+        @app.get("/health")
+        async def health():
+            return {"status": "ok", "mode": "Graphiti MCP"}
+
+        # JSON-RPC endpoint for MCP
+        @app.post("/mcp")
+        async def handle_mcp(request: Request):
+            try:
+                payload = await request.json()
+                response = await mcp.handle_request(payload)
+                if response is None:
+                    return JSONResponse({"error": "No response generated"}, status_code=500)
+                return JSONResponse(response)
+            except Exception as e:
+                logger.error(f"MCP handler error: {str(e)}")
+                return JSONResponse({"error": str(e)}, status_code=500)
+
+        # SSE (existing behavior)
+        import asyncio
+        loop = asyncio.get_event_loop()
+        loop.create_task(mcp.run_sse_async())
+
+        # Run combined server
+        config = uvicorn.Config(
+            app,
+            host=mcp.settings.host or "0.0.0.0",
+            port=mcp.settings.port or 8010,
+            log_level="info",
+        )
+        server = uvicorn.Server(config)
+        await server.serve()
 
 
 def main():
