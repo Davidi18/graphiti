@@ -86,17 +86,30 @@ async def mcp_endpoint(request: Request):
                 "id": body.get("id"),
                 "result": {
                     "tools": [
-                        {"name": "graph_summary", "description": "Summarize the current knowledge graph"},
-                        {"name": "graph_list_nodes", "description": "List nodes in the graph"},
-                        {"name": "graph_list_relations", "description": "List relationships in the graph"},
-                        {"name": "graph_add_node", "description": "Add a new node to the graph"},
-                        {"name": "graph_add_relation", "description": "Create a relationship between two nodes"},
-                        {"name": "graph_clear_data", "description": "Delete all nodes and relationships"},
-                    ]
+            # --- Basic Tools ---
+            {"name": "graph_summary", "description": "Summarize the current knowledge graph"},
+            {"name": "graph_list_nodes", "description": "List nodes in the graph"},
+            {"name": "graph_list_relations", "description": "List relationships in the graph"},
+            {"name": "graph_add_node", "description": "Add a new node to the graph"},
+            {"name": "graph_add_relation", "description": "Create a relationship between two nodes"},
+            {"name": "graph_clear_data", "description": "Delete all nodes and relationships"},
+        
+            # --- Analytical Tools ---
+            {"name": "graph_find_connections", "description": "Find paths or connections between entities"},
+            {"name": "graph_search_entities", "description": "Search entities by name or property"},
+            {"name": "graph_analyze_cluster", "description": "Analyze node clusters based on relationships"},
+            {"name": "graph_extract_entities", "description": "Extract entities from a given text"},
+            {"name": "graph_healthcheck", "description": "Check the health of Neo4j and embeddings"},
+        
+            # --- AI / Semantic Tools ---
+            {"name": "graph_expand_from_text", "description": "Generate new entities and links from text using OpenAI"},
+            {"name": "graph_embed_entities", "description": "Embed entities for semantic similarity search"},
+            {"name": "graph_query_llm", "description": "Run natural language queries on the graph"},
+            {"name": "graph_compare_nodes", "description": "Compare entities semantically"},
+            {"name": "graph_autolink", "description": "Automatically link related entities based on meaning"}
+        ]
                 },
-            }
-
-        # ===========================
+            }        # ===========================
         # 🔹 TOOLS CALL
         # ===========================
         elif method == "tools/call":
@@ -157,6 +170,78 @@ async def mcp_endpoint(request: Request):
                     }
                 except Exception as e:
                     return {"jsonrpc": "2.0", "error": {"code": -32603, "message": str(e)}}
+
+            # ======================
+            # 🔍 ANALYTICAL / AI TOOLS
+            # ======================
+
+            elif tool_name == "graph_find_connections":
+                args = params.get("arguments", {})
+                start = args.get("start")
+                end = args.get("end")
+                with graphiti.driver.session() as session:
+                    query = f"MATCH p=shortestPath((a)-[*..5]-(b)) WHERE a.name='{start}' AND b.name='{end}' RETURN p LIMIT 1"
+                    result = session.run(query)
+                    paths = [r.data() for r in result]
+                return {"jsonrpc": "2.0", "id": body.get("id"), "result": {"content": [{"type": "json", "text": paths}]}}
+
+            elif tool_name == "graph_search_entities":
+                term = params.get("arguments", {}).get("term", "")
+                with graphiti.driver.session() as session:
+                    query = f"MATCH (n) WHERE toLower(n.name) CONTAINS toLower('{term}') RETURN n LIMIT 10"
+                    result = session.run(query)
+                    nodes = [r["n"] for r in result]
+                return {"jsonrpc": "2.0", "id": body.get("id"), "result": {"content": [{"type": "json", "text": nodes}]}}
+
+            elif tool_name == "graph_analyze_cluster":
+                with graphiti.driver.session() as session:
+                    query = "MATCH (n)-[r]->(m) RETURN type(r) as relation, count(*) as count ORDER BY count DESC LIMIT 10"
+                    data = [r.data() for r in session.run(query)]
+                return {"jsonrpc": "2.0", "id": body.get("id"), "result": {"content": [{"type": "json", "text": data}]}}
+
+            elif tool_name == "graph_extract_entities":
+                text = params.get("arguments", {}).get("text", "")
+                api_key = os.getenv("OPENAI_API_KEY")
+                if not api_key:
+                    return {"jsonrpc": "2.0", "error": {"code": -32603, "message": "AI features disabled (missing GRAPHITI_OPENAI_API_KEY)"}}
+                from openai import OpenAI
+                client = OpenAI(api_key=api_key)
+                response = client.chat.completions.create(
+                    model="gpt-4o-mini",
+                    messages=[{"role": "system", "content": "Extract entities (Person, Company, Location, Project) from text"},
+                              {"role": "user", "content": text}]
+                )
+                return {"jsonrpc": "2.0", "id": body.get("id"),
+                        "result": {"content": [{"type": "text", "text": response.choices[0].message.content}]}}
+
+            elif tool_name == "graph_healthcheck":
+                try:
+                    graphiti.driver.verify_connectivity()
+                    status = "connected"
+                except Exception as e:
+                    status = f"error: {e}"
+                return {"jsonrpc": "2.0", "id": body.get("id"),
+                        "result": {"content": [{"type": "text", "text": f"Neo4j status: {status}"}]}}
+
+            elif tool_name == "graph_expand_from_text":
+                api_key = os.getenv("OPENAI_API_KEY")
+                if not api_key:
+                    return {"jsonrpc": "2.0", "error": {"code": -32603, "message": "AI features disabled (missing GRAPHITI_OPENAI_API_KEY)"}}
+                from openai import OpenAI
+                client = OpenAI(api_key=api_key)
+                text = params.get("arguments", {}).get("text", "")
+                response = client.chat.completions.create(
+                    model="gpt-4o-mini",
+                    messages=[
+                        {"role": "system", "content": "Generate structured knowledge graph entities and relations from text."},
+                        {"role": "user", "content": text},
+                    ]
+                )
+                return {"jsonrpc": "2.0", "id": body.get("id"),
+                        "result": {"content": [{"type": "text", "text": response.choices[0].message.content}]}}
+
+            elif tool_name in ["graph_embed_entities", "graph_query_llm", "graph_compare_nodes", "graph_autolink"]:
+                return {"jsonrpc": "2.0", "error": {"code": -32603, "message": f"Tool {tool_name} defined but not yet implemented."}}
 
             # ======================
             # ✏️ WRITE OPERATIONS
@@ -223,6 +308,7 @@ async def mcp_endpoint(request: Request):
 
     except Exception as e:
         return {"jsonrpc": "2.0", "error": {"code": -32603, "message": str(e)}}
+
 
 # -------------------------------------------------------
 # ✅ Run manually if needed
