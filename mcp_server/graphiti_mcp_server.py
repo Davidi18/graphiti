@@ -211,11 +211,20 @@ async def mcp_endpoint(request: Request):
                     messages=[{"role": "system", "content": "Extract entities (Person, Company, Location, Project) from text"},
                               {"role": "user", "content": text}]
                 )
-                return {"jsonrpc": "2.0", "id": body.get("id"),
-                        "result": {"content": [{"type": "text", "text": response.choices[0].message.content.strip("`").replace("json", "").strip()
-}]}}
+                return {
+                    "jsonrpc": "2.0",
+                    "id": body.get("id"),
+                    "result": {
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": response.choices[0].message.content.strip("`").replace("json", "").strip()
+                            }
+                        ]
+                    },
+                }
 
-                        elif tool_name == "graph_healthcheck":
+            elif tool_name == "graph_healthcheck":
                 try:
                     graphiti.driver.verify_connectivity()
                     status = "connected"
