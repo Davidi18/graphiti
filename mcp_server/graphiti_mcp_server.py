@@ -1128,41 +1128,53 @@ async def run_mcp_server():
 
     logger.info(f'Starting MCP server with transport: {mcp_config.transport}')
 
-    # Run stdio transport if configured
+    # אם מדובר ב-stdio, תריץ כמו קודם
     if mcp_config.transport == 'stdio':
         await mcp.run_stdio_async()
+        return
 
-    elif mcp_config.transport == 'sse':
-        logger.info(
-            f'Running MCP server with SSE and HTTP endpoints on {mcp.settings.host}:{mcp.settings.port}'
-        )
+    # אחרת נריץ FastAPI HTTP JSON-RPC server על פורט 8010
+    app = FastAPI()
 
-        app = FastAPI()
+    @app.get("/health")
+    async def health():
+        """Health check endpoint."""
+        return {"status": "ok", "mode": "Graphiti MCP", "transport": "http"}
 
-        # Health check endpoint
-        @app.get("/health")
-        async def health():
-            return {"status": "ok", "mode": "Graphiti MCP"}
+    @app.post("/mcp")
+    async def handle_mcp(request: Request):
+        """Handle JSON-RPC requests from n8n or external services."""
+        try:
+            payload = await request.json()
+            logger.info(f"📥 MCP request: {payload}")
 
-        # MCP JSON-RPC endpoint
-        @app.post("/mcp")
-        async def handle_mcp(request: Request):
-            try:
-                payload = await request.json()
+            # Verify that FastMCP instance is available
+            if not hasattr(mcp, "dispatch"):
+                return JSONResponse({"error": "MCP instance not ready"}, status_code=503)
 
-                if not hasattr(mcp, "dispatch"):
-                    return JSONResponse({"error": "MCP instance not ready"}, status_code=503)
+            response = await mcp.dispatch(payload)
+            logger.info(f"📤 MCP response: {response}")
+            return JSONResponse(response)
 
-                response = await mcp.dispatch(payload)
-                return JSONResponse(response)
+        except Exception as e:
+            logger.error(f"❌ MCP /mcp handler error: {str(e)}")
+            return JSONResponse({"error": str(e)}, status_code=500)
 
-            except Exception as e:
-                logger.error(f"MCP /mcp handler error: {str(e)}")
-                return JSONResponse({"error": str(e)}, status_code=500)
+    logger.info(f"Running MCP HTTP server on {mcp.settings.host}:{mcp.settings.port}")
 
-        # Start the server
-        uvicorn.run(
-            app,
-            host=mcp.settings.host or "0.0.0.0",
-            port=int(mcp.settings.port or 8010),
-        )
+    uvicorn.run(app, host=mcp.settings.host or "0.0.0.0", port=int(mcp.settings.port or 8010))
+
+
+def main():
+    """Main function to run the Graphiti MCP server."""
+    try:
+        asyncio.run(run_mcp_server())
+    except Exception as e:
+        logger.error(f'Error initializing Graphiti MCP server: {str(e)}')
+        raise
+
+
+print("🚀 Graphiti MCP (OpenAI-only build) started successfully.")
+
+if __name__ == '__main__':
+    main()
