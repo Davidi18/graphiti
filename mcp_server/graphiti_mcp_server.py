@@ -86,6 +86,9 @@ def verify_bearer_token(credentials: HTTPAuthorizationCredentials = Depends(secu
 # ✅ Manual MCP handler
 # -------------------------------------------------------
 
+# ✅ Manual MCP handler
+# --------------------------------------------------
+
 @app.post("/mcp")
 async def mcp_endpoint(request: Request):
     """Main MCP endpoint for Graphiti operations with Bearer token auth."""
@@ -100,25 +103,53 @@ async def mcp_endpoint(request: Request):
 
             if not token:
                 return JSONResponse(
-                    {"jsonrpc": "2.0", "error": {"code": -32000, "message": "Server misconfigured: GRAPHITI_MCP_TOKEN not set"}},
+                    {
+                        "jsonrpc": "2.0",
+                        "error": {
+                            "code": -32000,
+                            "message": "Server misconfigured: GRAPHITI_MCP_TOKEN not set",
+                        },
+                    },
                     status_code=500,
                 )
 
             if not auth_header.startswith("Bearer ") or auth_header.split(" ", 1)[1] != token:
                 return JSONResponse(
-                    {"jsonrpc": "2.0", "error": {"code": -32604, "message": "Invalid or missing Bearer token"}},
+                    {
+                        "jsonrpc": "2.0",
+                        "error": {
+                            "code": -32604,
+                            "message": "Invalid or missing Bearer token",
+                        },
+                    },
                     status_code=401,
                 )
 
-        # 👇 כאן תמשיך לטפל בכלי ה-MCP (tools/call וכו')
+        # 👇 כאן ימשיך כל הקוד של הכלים (tools/list, graph_summary וכו')
+        if method == "tools/list":
+            return JSONResponse(
+                {
+                    "jsonrpc": "2.0",
+                    "id": body.get("id"),
+                    "result": {"tools": ["graph_list_nodes", "graph_add_node"]},
+                },
+                status_code=200,
+            )
+
         return JSONResponse(
-            {"jsonrpc": "2.0", "result": {"message": "MCP request received successfully"}},
-            status_code=200,
+            {
+                "jsonrpc": "2.0",
+                "error": {"code": -32601, "message": f"Unknown method: {method}"},
+            },
+            status_code=400,
         )
 
     except Exception as e:
         return JSONResponse(
-            {"jsonrpc": "2.0", "error": {"code": -32603, "message": f"Unexpected error: {e}"}},
+            {
+                "jsonrpc": "2.0",
+                "error": {"code": -32603, "message": f"Unexpected error: {e}"},
+            },
             status_code=500,
         )
 
@@ -130,9 +161,8 @@ async def mcp_preflight():
     """Allow n8n or browser clients to check connectivity."""
     return JSONResponse(
         {"status": "ok", "message": "Graphiti MCP endpoint ready"},
-        status_code=200
+        status_code=200,
     )
-
 
         # ===========================
         # 🔹 TOOLS LIST
