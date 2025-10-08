@@ -87,6 +87,29 @@ def status():
     except Exception as e:
         return {"status": "error", "neo4j": str(e)}
 
+@app.get("/tools")
+def list_tools():
+    return {
+        "tools": [
+            {"name": "graph_summary", "description": "Summarize the current knowledge graph"},
+            {"name": "graph_list_nodes", "description": "List nodes in the graph"},
+            {"name": "graph_list_relations", "description": "List relationships in the graph"},
+            {"name": "graph_add_node", "description": "Add a new node to the graph"},
+            {"name": "graph_add_relation", "description": "Create a relationship between two nodes"},
+            {"name": "graph_clear_data", "description": "Delete all nodes and relationships"},
+            {"name": "graph_find_connections", "description": "Find paths or connections between entities"},
+            {"name": "graph_search_entities", "description": "Search entities by name or property"},
+            {"name": "graph_analyze_cluster", "description": "Analyze node clusters based on relationships"},
+            {"name": "graph_extract_entities", "description": "Extract entities from a given text"},
+            {"name": "graph_healthcheck", "description": "Check the health of Neo4j and embeddings"},
+            {"name": "graph_expand_from_text", "description": "Generate new entities and links from text using OpenAI"},
+            {"name": "graph_embed_entities", "description": "Embed entities for semantic similarity search"},
+            {"name": "graph_query_llm", "description": "Run natural language queries on the graph"},
+            {"name": "graph_compare_nodes", "description": "Compare entities semantically"},
+            {"name": "graph_autolink", "description": "Automatically link related entities based on meaning"},
+        ]
+    }
+
 # -------------------------------------------------------
 # 🔒 Bearer Token Authentication
 # -------------------------------------------------------
